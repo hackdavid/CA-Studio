@@ -221,15 +221,6 @@ pytest tests/ -q
 python test_consolidated_app.py
 ```
 
-### Excluded from version control
-
-The following are intentionally **not** pushed to GitHub (see `.gitignore`):
-
-- `.cursor/`, `.claude/` — local AI/editor configuration  
-- `reference_code/` — legacy Java reference (keep locally for parity work)  
-- `env/`, `ca_lab.db` — virtualenv and local database  
-
----
 
 ## Technology stack
 
