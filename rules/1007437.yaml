@@ -1,0 +1,103 @@
+# 1007437
+# Auto-generated from rule table
+
+name: '1007437'
+version: '1.0'
+states: 4
+neighbourhood: moore8
+transitions:
+- from:
+  - 3
+  neighbors:
+  - 7
+  to: 1
+- from:
+  - 2
+  neighbors:
+  - 7
+  to: 3
+- from:
+  - 1
+  neighbors:
+  - 6
+  to: 1
+- from:
+  - 3
+  neighbors:
+  - 3
+  - 4
+  - 8
+  - 9
+  to: 0
+- from:
+  - 3
+  neighbors:
+  - 2
+  to: 3
+- from:
+  - 0
+  neighbors:
+  - 2
+  - 5
+  - 6
+  to: 2
+- from:
+  - 1
+  neighbors:
+  - 2
+  - 3
+  - 5
+  to: 2
+- from:
+  - 0
+  neighbors:
+  - 1
+  to: 3
+- from:
+  - 2
+  neighbors:
+  - 1
+  - 2
+  - 4
+  - 6
+  to: 2
+- from:
+  - 2
+  neighbors:
+  - 0
+  - 3
+  - 5
+  - 8
+  - 9
+  to: 0
+- from:
+  - 0
+  neighbors:
+  - 0
+  - 3
+  - 4
+  - 7
+  - 8
+  - 9
+  to: 0
+- from:
+  - 3
+  neighbors:
+  - 0
+  - 1
+  - 5
+  - 6
+  to: 2
+- from:
+  - 1
+  neighbors:
+  - 0
+  - 1
+  - 4
+  - 7
+  - 8
+  - 9
+  to: 0
+description: 'Legacy rule: 1007437'
+source: reference_code/rules/1007437.txt
+converted: true

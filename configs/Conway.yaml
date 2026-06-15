@@ -1,0 +1,34 @@
+# Conway's Game of Life — classic B3/S23 2-state cellular automaton
+# Category: classic
+# Generated from rule: reference_code/rules/Conway.txt
+
+name: conway-baseline
+rule: Conway
+num_states: 2
+description: "Conway's Game of Life \u2014 classic B3/S23 2-state cellular automaton"
+category: classic
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/conway-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1

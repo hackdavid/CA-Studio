@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessions — CA Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .session-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .session-card:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15); }
+        .status-dot { transition: all 0.3s; }
+        .delete-btn { transition: all 0.2s; opacity: 0; }
+        .session-card:hover .delete-btn { opacity: 1; }
+        .animate-slide-up { animation: slideUp 0.4s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg">🔬</div>
+            <div>
+                <div class="font-bold text-gray-900 leading-tight text-sm">CA Lab</div>
+                <div class="text-xs text-gray-500">Sessions</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-1">
+            <a href="/" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 text-sm font-medium transition-all">Home</a>
+            <a href="/rules" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 text-sm font-medium transition-all">Rules</a>
+            <a href="/sessions" class="px-4 py-2 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium transition-all">Sessions</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto p-6">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Sessions</h1>
+                <p class="text-sm text-gray-500 mt-1">Resume or manage your experiments</p>
+            </div>
+            <a href="/sessions/new" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-primary-200 transition-all hover:translate-y-[-2px]">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
+                New Session
+            </a>
+        </div>
+
+        <div id="sessions-list" class="space-y-3">
+            <div class="bg-white rounded-2xl border border-gray-200 p-8 text-center animate-slide-up">
+                <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </div>
+                <p class="text-gray-500 text-sm">Loading sessions...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadSessions() {
+            try {
+                const sessions = await api.get('/api/sessions/');
+                const container = document.getElementById('sessions-list');
+                if (sessions.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                            <div class="text-4xl mb-3">🧪</div>
+                            <p class="text-gray-500 mb-4">No sessions yet. Create your first experiment!</p>
+                            <a href="/sessions/new" class="inline-block bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all">Create Session</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = sessions.map((s, i) => `
+                    <div class="session-card bg-white rounded-2xl border border-gray-200 p-5 animate-slide-up" style="animation-delay: ${i * 50}ms">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-2xl shadow-sm">
+                                    ${s.status === 'running' ? '▶️' : s.current_step > 0 ? '⏸️' : '🆕'}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-900">${s.name}</div>
+                                    <div class="text-sm text-gray-500 flex items-center gap-2 mt-0.5">
+                                        <span class="flex items-center gap-1">
+                                            <span class="w-2 h-2 rounded-full ${s.status === 'running' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}"></span>
+                                            ${s.status}
+                                        </span>
+                                        <span>·</span>
+                                        <span>${s.rule_name}</span>
+                                        <span>·</span>
+                                        <span>${s.board_width}×${s.board_height}</span>
+                                        <span>·</span>
+                                        <span class="font-mono text-primary-600 font-medium">Step ${s.current_step}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Metrics: ${s.metrics_enabled.join(', ')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="/play/${s.id}" class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-all shadow-sm shadow-primary-200">
+                                    ${s.status === 'running' ? 'Resume' : 'Play'}
+                                </a>
+                                <button onclick="deleteSession(${s.id})" class="delete-btn p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                toast('Failed to load sessions: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteSession(id) {
+            if (!confirm('Delete this session? This action cannot be undone.')) return;
+            try {
+                await api.delete(`/api/sessions/${id}`);
+                toast('Session deleted', 'success');
+                loadSessions();
+            } catch (e) {
+                toast('Failed to delete: ' + e.message, 'error');
+            }
+        }
+
+        loadSessions();
+    </script>
+</body>
+</html>

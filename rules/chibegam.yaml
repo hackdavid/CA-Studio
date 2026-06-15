@@ -1,0 +1,113 @@
+# chibegam
+# Auto-generated from rule table
+
+name: chibegam
+version: '1.0'
+states: 51
+neighbourhood: moore8
+transitions:
+- from:
+  - 50
+  neighbors:
+  - 9
+  to: 0
+- from:
+  - 1
+  neighbors:
+  - 4
+  - 5
+  to: 50
+- from:
+  - 0
+  neighbors:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  to: 1
+- from:
+  - 0
+  neighbors:
+  - 0
+  - 9
+  to: 0
+- from:
+  - 1
+  neighbors:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 6
+  - 7
+  - 8
+  - 9
+  to: 0
+- from:
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
+  - 28
+  - 29
+  - 30
+  - 31
+  - 32
+  - 33
+  - 34
+  - 35
+  - 36
+  - 37
+  - 38
+  - 39
+  - 40
+  - 41
+  - 42
+  - 43
+  - 44
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  neighbors:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  to: 0
+description: 'Legacy rule: chibegam'
+source: reference_code/rules/chibegam.txt
+converted: true

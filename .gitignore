@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-wheel-metadata/
+*.manifest
+*.spec
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# IDE & editor tooling (do not publish)
+.cursor/
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Legacy reference implementation (local only)
+reference_code/
+
+# Database & runtime artifacts
+ca_lab.db
+ca_lab.db-*
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.db.backup
+
+# Logs & debug
+*.log
+debug-*.log
+
+# OS
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build / packaging
+*.tar.gz
+*.zip
+
+# Pygame / media caches (optional)
+*.png.tmp

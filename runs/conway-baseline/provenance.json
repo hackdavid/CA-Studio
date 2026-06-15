@@ -1,0 +1,10 @@
+{
+  "ca_lab_version": "0.1.0",
+  "python_version": "3.12.4 | packaged by Anaconda, Inc. | (main, Jun 18 2024, 15:03:56) [MSC v.1929 64 bit (AMD64)]",
+  "experiment_name": "conway-baseline",
+  "rule_path": "Conway",
+  "rule_sha256": "",
+  "config_sha256": "8a60014e6c3fe8c0b22e5e4ff1082b126ec6578099d785ff48ea182cae58a2e0",
+  "global_seed": 42,
+  "timestamp_utc": "2026-06-08T15:26:47.061356+00:00"
+}

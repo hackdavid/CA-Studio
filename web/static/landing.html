@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CA Lab — Next-Generation Cellular Automata Laboratory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Crimson Pro', 'serif'],
+            sans: ['Atkinson Hyperlegible', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f5f9',
+              100: '#d9e5ef',
+              200: '#b8cfe0',
+              300: '#8bb1cd',
+              400: '#5c8fb7',
+              500: '#3d73a2',
+              600: '#2f5c87',
+              700: '#284b6e',
+              800: '#1e3a5f',
+              900: '#1b3252',
+            },
+            accent: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+            },
+            secondary: {
+              500: '#2563eb',
+              600: '#1d4ed8',
+            }
+          },
+          animation: {
+            'float': 'float 8s ease-in-out infinite',
+            'pulse-slow': 'pulse 5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'slide-up': 'slideUp 0.7s ease-out forwards',
+            'fade-in': 'fadeIn 0.9s ease-out forwards',
+            'scale-in': 'scaleIn 0.6s ease-out forwards',
+            'shimmer': 'shimmer 2.5s linear infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-25px)' },
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(40px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            scaleIn: {
+              '0%': { transform: 'scale(0.92)', opacity: '0' },
+              '100%': { transform: 'scale(1)', opacity: '1' },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-1000px 0' },
+              '100%': { backgroundPosition: '1000px 0' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .hero-grid {
+      background-image:
+        linear-gradient(rgba(30, 58, 95, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 58, 95, 0.04) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(30, 58, 95, 0.1);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #059669 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hover-lift {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .hover-lift:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 24px 48px rgba(30, 58, 95, 0.15);
+    }
+    .ca-preview-ring {
+      position: relative;
+      overflow: hidden;
+    }
+    .ca-preview-ring::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(135deg, #2563eb, #059669, #2563eb);
+      border-radius: 1.5rem;
+      opacity: 0.6;
+      filter: blur(8px);
+      z-index: -1;
+      animation: shimmer 3s linear infinite;
+      background-size: 200% 200%;
+    }
+    .feature-icon-bg {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(5, 150, 105, 0.08));
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans bg-slate-50 text-slate-900 antialiased">
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-b border-slate-200/60">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-700 to-secondary-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/25">
+            CA
+          </div>
+          <div>
+            <div class="font-serif font-bold text-xl tracking-tight text-primary-900">CA Lab</div>
+            <div class="text-xs text-primary-600 font-medium">Research Edition</div>
+          </div>
+        </div>
+        <div class="hidden md:flex items-center gap-8">
+          <a href="#features" class="text-sm font-medium text-slate-700 hover:text-primary-700 transition-colors duration-200">Features</a>
+          <a href="#research" class="text-sm font-medium text-slate-700 hover:text-primary-700 transition-colors duration-200">Research</a>
+          <a href="#education" class="text-sm font-medium text-slate-700 hover:text-primary-700 transition-colors duration-200">Education</a>
+          <a href="#docs" class="text-sm font-medium text-slate-700 hover:text-primary-700 transition-colors duration-200">Documentation</a>
+          <a href="/dashboard" class="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-700 text-white text-sm font-semibold rounded-lg hover:bg-primary-800 transition-all duration-200 hover:shadow-lg hover:shadow-primary-500/25">
+            Launch Lab
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="relative min-h-screen flex items-center hero-grid pt-16 overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-br from-primary-50/30 via-transparent to-accent-50/20"></div>
+
+    <!-- Floating decorative elements -->
+    <div class="absolute top-32 left-16 w-80 h-80 bg-primary-400/8 rounded-full blur-3xl animate-pulse-slow"></div>
+    <div class="absolute bottom-24 right-16 w-96 h-96 bg-accent-400/8 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 2.5s;"></div>
+
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 py-24 relative z-10">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <!-- Left: Text -->
+        <div class="animate-slide-up">
+          <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-primary-200 rounded-full text-sm font-semibold text-primary-800 mb-8 shadow-sm">
+            <span class="w-2 h-2 bg-accent-500 rounded-full animate-pulse"></span>
+            Next-Generation CA Research Platform
+          </div>
+          <h1 class="font-serif text-5xl lg:text-7xl font-bold tracking-tight text-slate-900 leading-[1.1] mb-8">
+            Dynamic
+            <span class="gradient-text">Cellular Automata</span>
+            Laboratory
+          </h1>
+          <p class="text-xl text-slate-700 leading-relaxed mb-6 max-w-xl">
+            A professional-grade platform for researchers, educators, and students to design, simulate, and analyze cellular automata with unprecedented flexibility.
+          </p>
+          <p class="text-lg text-slate-600 leading-relaxed mb-10 max-w-xl">
+            Experiment with multi-state systems, custom rule sets, and real-time metrics tracking. Built for scientific research and educational excellence.
+          </p>
+
+          <div class="flex flex-wrap gap-4 mb-12">
+            <a href="/dashboard" class="hover-lift inline-flex items-center gap-3 px-8 py-4 bg-primary-700 text-white font-bold rounded-xl hover:bg-primary-800 transition-all duration-250 shadow-lg shadow-primary-500/25">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              Start Experimenting
+            </a>
+            <a href="#research" class="hover-lift inline-flex items-center gap-3 px-8 py-4 bg-white text-primary-800 font-bold rounded-xl border-2 border-primary-200 hover:border-primary-400 hover:bg-primary-50/50 transition-all duration-250">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+              Research Features
+            </a>
+          </div>
+
+          <!-- Key Features -->
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span class="text-slate-700 font-medium">Dynamic rule systems</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span class="text-slate-700 font-medium">Real-time metrics</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span class="text-slate-700 font-medium">Multi-state support (K=2-101)</span>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span class="text-slate-700 font-medium">Persistent sessions</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Visual Preview -->
+        <div class="animate-scale-in relative">
+          <div class="ca-preview-ring rounded-2xl bg-white shadow-2xl shadow-primary-500/15 p-3">
+            <div class="rounded-xl bg-slate-900 overflow-hidden aspect-square relative">
+              <canvas id="hero-canvas" class="w-full h-full" width="400" height="400"></canvas>
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent"></div>
+              <div class="absolute top-4 left-4 right-4">
+                <div class="glass-card rounded-lg p-3 inline-flex items-center gap-2">
+                  <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                  <span class="text-xs text-slate-900 font-bold">Live Simulation</span>
+                </div>
+              </div>
+              <div class="absolute bottom-4 left-4 right-4">
+                <div class="glass-card rounded-lg p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-slate-700">Current State</span>
+                    <span class="text-xs font-mono text-primary-700" id="hero-step">Step: 0</span>
+                  </div>
+                  <div class="flex gap-3 text-xs">
+                    <div>
+                      <div class="text-slate-500 font-medium">Density</div>
+                      <div class="font-mono font-bold text-slate-900" id="hero-density">0.45</div>
+                    </div>
+                    <div>
+                      <div class="text-slate-500 font-medium">Entropy</div>
+                      <div class="font-mono font-bold text-slate-900" id="hero-entropy">0.82</div>
+                    </div>
+                    <div>
+                      <div class="text-slate-500 font-medium">Rule</div>
+                      <div class="font-mono font-bold text-primary-700">Conway</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating stats cards -->
+          <div class="absolute -top-6 -right-6 glass-card rounded-xl p-5 shadow-xl animate-float">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-lg feature-icon-bg flex items-center justify-center">
+                <svg class="w-6 h-6 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+              </div>
+              <div>
+                <div class="text-xs text-slate-600 font-medium">Metrics Tracked</div>
+                <div class="text-xl font-bold text-slate-900">12+</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="absolute -bottom-6 -left-6 glass-card rounded-xl p-5 shadow-xl animate-float" style="animation-delay: 2s;">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-lg feature-icon-bg flex items-center justify-center">
+                <svg class="w-6 h-6 text-accent-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              </div>
+              <div>
+                <div class="text-xs text-slate-600 font-medium">WebSocket Speed</div>
+                <div class="text-xl font-bold text-slate-900">Real-time</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Research Features Section -->
+  <section id="research" class="py-32 bg-white">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="text-center mb-20 animate-slide-up">
+        <div class="inline-block px-4 py-2 bg-primary-100 text-primary-800 text-sm font-bold rounded-full mb-6">
+          Research-Grade Tools
+        </div>
+        <h2 class="font-serif text-4xl lg:text-5xl font-bold text-slate-900 mb-6">Built for Scientific Discovery</h2>
+        <p class="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+          Explore emergent phenomena, test hypotheses, and publish reproducible results with professional-grade cellular automata tools.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Custom Rule Systems</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Define and validate custom transition rules with multi-state support. From binary to 101-state systems.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Rule validation & compilation
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Neighborhood configurations
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Save & share rule sets
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Advanced Metrics</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Track density, entropy, stability, and custom metrics in real-time. Export data for statistical analysis.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Real-time computation
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              CSV/JSON export
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Custom metric plugins
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">WebSocket Streaming</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Watch evolution in real-time with low-latency WebSocket updates. Pause, step, or adjust speed on the fly.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Sub-100ms latency
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Variable playback speed
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Step-by-step debugging
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Interactive Canvas</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Paint initial conditions directly on the grid. Design patterns, seed randomness, or import configurations.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Multi-state painting
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Pattern library
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Grid size: 8×8 to 512×512
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Session Management</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Save sessions with full provenance. Resume experiments, compare variations, and maintain research logs.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              SQLite persistence
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Reproducible results
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Search & filter
+            </li>
+          </ul>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="group bg-slate-50 rounded-2xl p-8 border-2 border-slate-200 hover:border-primary-300 hover:bg-white transition-all duration-300 hover-lift">
+          <div class="w-16 h-16 rounded-xl feature-icon-bg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-8 h-8 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Research Ready</h3>
+          <p class="text-slate-600 leading-relaxed mb-4">
+            Export publication-quality visualizations, data tables, and reproducible configurations.
+          </p>
+          <ul class="space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              PNG/SVG export
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Data provenance logs
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              Citation support
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Education Section -->
+  <section id="education" class="py-32 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div class="order-2 lg:order-1">
+          <div class="bg-white rounded-2xl shadow-2xl shadow-slate-900/10 p-8 border border-slate-200">
+            <div class="space-y-6">
+              <div class="flex items-start gap-4 p-4 bg-primary-50 rounded-xl border border-primary-200">
+                <div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold flex-shrink-0">1</div>
+                <div>
+                  <h4 class="font-bold text-slate-900 mb-1">Design Your System</h4>
+                  <p class="text-sm text-slate-600">Define custom rules, choose grid size, and set initial conditions</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4 p-4 bg-accent-50 rounded-xl border border-accent-200">
+                <div class="w-10 h-10 rounded-lg bg-accent-600 flex items-center justify-center text-white font-bold flex-shrink-0">2</div>
+                <div>
+                  <h4 class="font-bold text-slate-900 mb-1">Run & Observe</h4>
+                  <p class="text-sm text-slate-600">Watch real-time evolution, track metrics, and analyze patterns</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4 p-4 bg-secondary-50 rounded-xl border border-secondary-200">
+                <div class="w-10 h-10 rounded-lg bg-secondary-600 flex items-center justify-center text-white font-bold flex-shrink-0">3</div>
+                <div>
+                  <h4 class="font-bold text-slate-900 mb-1">Export & Share</h4>
+                  <p class="text-sm text-slate-600">Save results, export data, and share your discoveries</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-1 lg:order-2">
+          <div class="inline-block px-4 py-2 bg-accent-100 text-accent-800 text-sm font-bold rounded-full mb-6">
+            For Educators & Students
+          </div>
+          <h2 class="font-serif text-4xl lg:text-5xl font-bold text-slate-900 mb-6">
+            Teach Complex Systems Intuitively
+          </h2>
+          <p class="text-lg text-slate-700 leading-relaxed mb-6">
+            CA Lab transforms abstract computational concepts into interactive visualizations. Perfect for computer science, mathematics, and biology courses.
+          </p>
+          <div class="space-y-4 mb-8">
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div>
+                <h4 class="font-bold text-slate-900 mb-1">Hands-On Learning</h4>
+                <p class="text-slate-600">Students experiment directly with parameters and see immediate results</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div>
+                <h4 class="font-bold text-slate-900 mb-1">Classroom Ready</h4>
+                <p class="text-slate-600">Pre-built examples from Conway's Life to Wolfram's rules</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-accent-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div>
+                <h4 class="font-bold text-slate-900 mb-1">Assignment Support</h4>
+                <p class="text-slate-600">Students can save work, export results, and demonstrate understanding</p>
+              </div>
+            </div>
+          </div>
+          <a href="/dashboard" class="hover-lift inline-flex items-center gap-2 px-7 py-3.5 bg-accent-600 text-white font-bold rounded-xl hover:bg-accent-700 transition-all duration-250 shadow-lg shadow-accent-500/25">
+            Try Teaching Demo
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="py-32 bg-gradient-to-br from-primary-800 via-primary-700 to-secondary-600 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-5xl mx-auto px-6 lg:px-8 text-center relative z-10">
+      <h2 class="font-serif text-4xl lg:text-5xl font-bold text-white mb-6">
+        Start Your Research Today
+      </h2>
+      <p class="text-xl text-primary-100 leading-relaxed mb-10 max-w-2xl mx-auto">
+        Join researchers and educators worldwide using CA Lab to explore the frontiers of cellular automata.
+      </p>
+      <div class="flex flex-wrap gap-4 justify-center">
+        <a href="/dashboard" class="hover-lift inline-flex items-center gap-3 px-10 py-5 bg-white text-primary-800 font-bold text-lg rounded-xl hover:bg-primary-50 transition-all duration-250 shadow-2xl">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          Launch CA Lab
+        </a>
+        <a href="#docs" class="hover-lift inline-flex items-center gap-3 px-10 py-5 bg-primary-900/40 backdrop-blur-sm text-white font-bold text-lg rounded-xl border-2 border-white/30 hover:bg-primary-900/60 hover:border-white/50 transition-all duration-250">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          Read Documentation
+        </a>
+      </div>
+      <p class="text-primary-200 text-sm mt-8">
+        Free and open source • No installation required • Works in your browser
+      </p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-12">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-700 to-secondary-600 flex items-center justify-center text-white font-bold text-sm shadow-md">CA</div>
+          <div>
+            <div class="font-serif font-bold text-lg text-primary-900">CA Lab</div>
+            <div class="text-xs text-slate-600">Roehampton University</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-8 text-sm text-slate-600">
+          <a href="#docs" class="hover:text-primary-700 transition-colors duration-200">Documentation</a>
+          <a href="#research" class="hover:text-primary-700 transition-colors duration-200">Research</a>
+          <a href="#education" class="hover:text-primary-700 transition-colors duration-200">Education</a>
+        </div>
+        <div class="text-sm text-slate-500">
+          © 2024 CA Lab. Built for scientific discovery.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Enhanced Conway's Game of Life preview with metrics
+    (function() {
+      const canvas = document.getElementById('hero-canvas');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const W = 80, H = 80;
+      const scale = canvas.width / W;
+
+      let grid = new Uint8Array(W * H);
+      let next = new Uint8Array(W * H);
+      let step = 0;
+
+      // Initialize with glider gun pattern + random noise
+      for (let i = 0; i < W * H; i++) {
+        grid[i] = Math.random() > 0.88 ? 1 : 0;
+      }
+
+      // Add a glider for visual interest
+      const centerX = Math.floor(W / 2);
+      const centerY = Math.floor(H / 2);
+      grid[centerY * W + centerX + 1] = 1;
+      grid[(centerY + 1) * W + centerX + 2] = 1;
+      grid[(centerY + 2) * W + centerX] = 1;
+      grid[(centerY + 2) * W + centerX + 1] = 1;
+      grid[(centerY + 2) * W + centerX + 2] = 1;
+
+      function get(x, y) {
+        x = (x + W) % W;
+        y = (y + H) % H;
+        return grid[y * W + x];
+      }
+
+      function calculateMetrics() {
+        let alive = 0;
+        for (let i = 0; i < grid.length; i++) {
+          if (grid[i]) alive++;
+        }
+        const density = alive / grid.length;
+        const entropy = density > 0 && density < 1
+          ? -(density * Math.log2(density) + (1 - density) * Math.log2(1 - density))
+          : 0;
+
+        return { density: density.toFixed(3), entropy: entropy.toFixed(3) };
+      }
+
+      function stepSimulation() {
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            let neighbors = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                neighbors += get(x + dx, y + dy);
+              }
+            }
+            const alive = get(x, y);
+            next[y * W + x] = (alive && (neighbors === 2 || neighbors === 3)) || (!alive && neighbors === 3) ? 1 : 0;
+          }
+        }
+        [grid, next] = [next, grid];
+        step++;
+      }
+
+      function draw() {
+        // Background
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw cells with gradient colors
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            if (grid[y * W + x]) {
+              const hue = ((x + y) * 3 + step * 0.5) % 360;
+              const saturation = 65 + (Math.sin(step * 0.05) * 10);
+              ctx.fillStyle = `hsl(${hue}, ${saturation}%, 55%)`;
+              ctx.fillRect(x * scale, y * scale, scale, scale);
+            }
+          }
+        }
+
+        // Update metrics
+        const metrics = calculateMetrics();
+        document.getElementById('hero-step').textContent = `Step: ${step}`;
+        document.getElementById('hero-density').textContent = metrics.density;
+        document.getElementById('hero-entropy').textContent = metrics.entropy;
+      }
+
+      setInterval(() => {
+        stepSimulation();
+        draw();
+      }, 100);
+      draw();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CA Lab — Cellular Automaton Laboratory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-gradient { background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%); }
+        .glass-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
+        .animate-float-delayed { animation: float 6s ease-in-out infinite 2s; }
+        .feature-icon { transition: all 0.3s; }
+        .feature-card:hover .feature-icon { transform: scale(1.1) rotate(5deg); }
+        .session-card { transition: all 0.3s; }
+        .session-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3); }
+        .stat-count { animation: countUp 2s ease-out; }
+        @keyframes countUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-glow { transition: all 0.3s; }
+        .btn-glow:hover { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-dark-900/80 backdrop-blur-md border-b border-white/10 px-6 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-primary-500/30">🔬</div>
+            <div>
+                <div class="font-bold text-white leading-tight">CA Lab</div>
+                <div class="text-xs text-gray-400">Cellular Automaton Laboratory</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-1">
+            <a href="/" class="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium transition-all hover:bg-white/20">Home</a>
+            <a href="/rules" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 text-sm font-medium transition-all">Rules</a>
+            <a href="/sessions" class="px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 text-sm font-medium transition-all">Sessions</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero-gradient relative overflow-hidden">
+        <div class="absolute inset-0 opacity-30">
+            <div class="absolute top-20 left-10 w-64 h-64 bg-primary-500 rounded-full blur-3xl animate-float"></div>
+            <div class="absolute bottom-20 right-20 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-float-delayed"></div>
+        </div>
+        <div class="relative max-w-6xl mx-auto px-6 py-20 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-sm text-gray-300 mb-6">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                v0.1.0 — Open Source Research Platform
+            </div>
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+                Explore the <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-purple-400">Patterns</span><br>
+                of Emergence
+            </h1>
+            <p class="text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                Design, simulate, and analyze multi-state cellular automata.
+                Built for researchers, students, and the next generation of scientific labs.
+            </p>
+            <div class="flex gap-4 justify-center">
+                <a href="/sessions/new" class="btn-glow bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 transition-all">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                    New Experiment
+                </a>
+                <a href="/rules" class="glass-card hover:bg-white/10 text-white px-8 py-4 rounded-2xl font-bold text-lg flex items-center gap-3 transition-all">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/></svg>
+                    Browse Rules
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="bg-dark-900 border-y border-white/10">
+        <div class="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="text-center stat-count">
+                <div class="text-4xl font-bold text-primary-400 mb-1" id="rule-count">0</div>
+                <div class="text-sm text-gray-400 uppercase tracking-wider">Rules</div>
+            </div>
+            <div class="text-center stat-count">
+                <div class="text-4xl font-bold text-purple-400 mb-1" id="session-count">0</div>
+                <div class="text-sm text-gray-400 uppercase tracking-wider">Sessions</div>
+            </div>
+            <div class="text-center stat-count">
+                <div class="text-4xl font-bold text-emerald-400 mb-1" id="snapshot-count">0</div>
+                <div class="text-sm text-gray-400 uppercase tracking-wider">Snapshots</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <section class="max-w-6xl mx-auto px-6 py-12">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-white">Recent Sessions</h2>
+            <a href="/sessions" class="text-primary-400 hover:text-primary-300 text-sm font-medium transition-colors">View All →</a>
+        </div>
+        <div id="recent-sessions" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="glass-card rounded-2xl p-6 text-center">
+                <div class="text-4xl mb-3">🧪</div>
+                <p class="text-gray-400 text-sm">No sessions yet. Create your first experiment!</p>
+                <a href="/sessions/new" class="inline-block mt-3 text-primary-400 hover:text-primary-300 text-sm font-medium">Start Now →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="max-w-6xl mx-auto px-6 py-12">
+        <h2 class="text-2xl font-bold text-white mb-8 text-center">Features</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="feature-card glass-card rounded-2xl p-6">
+                <div class="feature-icon text-4xl mb-4">🎨</div>
+                <h3 class="font-bold text-lg mb-2">Rule Editor</h3>
+                <p class="text-gray-400 text-sm">Create rules in YAML with real-time validation. Never overwrite built-in rules.</p>
+            </div>
+            <div class="feature-card glass-card rounded-2xl p-6">
+                <div class="feature-icon text-4xl mb-4">🖱️</div>
+                <h3 class="font-bold text-lg mb-2">Interactive Canvas</h3>
+                <p class="text-gray-400 text-sm">Draw initial states, paint cells, and watch evolution in real-time via WebSocket.</p>
+            </div>
+            <div class="feature-card glass-card rounded-2xl p-6">
+                <div class="feature-icon text-4xl mb-4">📊</div>
+                <h3 class="font-bold text-lg mb-2">Metrics & Export</h3>
+                <p class="text-gray-400 text-sm">Track density, entropy, and more. Export to CSV, YAML, or PNG for analysis.</p>
+            </div>
+            <div class="feature-card glass-card rounded-2xl p-6">
+                <div class="feature-icon text-4xl mb-4">💾</div>
+                <h3 class="font-bold text-lg mb-2">Save & Resume</h3>
+                <p class="text-gray-400 text-sm">Save any step as a snapshot. Resume later or export for headless batch runs.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark-900 border-t border-white/10 py-8 text-center">
+        <p class="text-gray-500 text-sm">CA Lab v0.1.0 — Open Source Cellular Automaton Laboratory</p>
+        <p class="text-gray-600 text-xs mt-1">Built for researchers, students, and universities worldwide</p>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadStats() {
+            try {
+                const [rules, sessions] = await Promise.all([
+                    api.get('/api/rules/'),
+                    api.get('/api/sessions/'),
+                ]);
+                document.getElementById('rule-count').textContent = rules.length;
+                document.getElementById('session-count').textContent = sessions.length;
+
+                const recent = document.getElementById('recent-sessions');
+                if (sessions.length > 0) {
+                    recent.innerHTML = sessions.slice(0, 6).map(s => `
+                        <div class="session-card glass-card rounded-2xl p-5 cursor-pointer" onclick="window.location.href='/play/${s.id}'">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full ${s.status === 'running' ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}"></div>
+                                    <span class="font-bold text-white text-sm">${s.name}</span>
+                                </div>
+                                <span class="text-xs text-gray-500">${s.rule_name}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-gray-400">
+                                <span>${s.board_width}×${s.board_height} · ${s.neighbourhood}</span>
+                                <span class="font-mono text-primary-400">Step ${s.current_step}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('Stats load failed:', e);
+            }
+        }
+        loadStats();
+    </script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Editor — CA Lab</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">🔬 CA Lab</div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/rules">Rules</a>
+            <a href="/sessions">Sessions</a>
+        </div>
+    </nav>
+
+    <main>
+        <section>
+            <h2 id="editor-title">New Rule</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label>Rule Name</label>
+                    <input type="text" id="rule-name" placeholder="MyRule">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="rule-desc" placeholder="Describe your rule">
+                </div>
+                <div class="form-group">
+                    <label>Number of States</label>
+                    <input type="number" id="rule-states" value="2" min="2" max="256">
+                </div>
+                <div class="form-group">
+                    <label>YAML Definition</label>
+                    <textarea id="rule-yaml" rows="12" placeholder="name: MyRule\nstates: 2\nneighbourhood: moore8\ntransitions:\n  - from: [0]\n    neighbors: [3]\n    to: 1"></textarea>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-secondary" onclick="validateRule()">Validate</button>
+                    <button class="btn btn-primary" onclick="saveRule()">Save Rule</button>
+                </div>
+                <div id="validation-result" style="margin-top: 1rem;"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const ruleId = urlParams.get('id') || window.location.pathname.split('/').pop();
+        const isEdit = ruleId && !isNaN(parseInt(ruleId));
+
+        async function loadRule() {
+            if (!isEdit) return;
+            try {
+                const rule = await api.get(`/api/rules/${ruleId}`);
+                document.getElementById('rule-name').value = rule.name;
+                document.getElementById('rule-desc').value = rule.description || '';
+                document.getElementById('rule-yaml').value = rule.yaml_content;
+                document.getElementById('editor-title').textContent = `Edit Rule: ${rule.name}`;
+                if (!rule.is_editable) {
+                    document.querySelector('button[onclick="saveRule()"]').disabled = true;
+                    toast('Built-in rules are read-only', 'warning');
+                }
+            } catch (e) {
+                toast('Failed to load rule: ' + e.message, 'error');
+            }
+        }
+
+        async function validateRule() {
+            const yaml = document.getElementById('rule-yaml').value;
+            const resultDiv = document.getElementById('validation-result');
+            try {
+                const result = await api.post('/api/rules/validate', {
+                    name: document.getElementById('rule-name').value,
+                    yaml_content: yaml,
+                });
+                if (result.is_valid) {
+                    resultDiv.innerHTML = '<div style="color: var(--success); padding: 0.5rem;">✅ Rule is valid!</div>';
+                } else {
+                    const errors = result.errors.map(e => `<div>❌ ${e.message}</div>`).join('');
+                    resultDiv.innerHTML = `<div style="color: var(--danger);">${errors}</div>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<div style="color: var(--danger);">❌ ${e.message}</div>`;
+            }
+        }
+
+        async function saveRule() {
+            const name = document.getElementById('rule-name').value;
+            const yaml = document.getElementById('rule-yaml').value;
+            const desc = document.getElementById('rule-desc').value;
+
+            if (!name || !yaml) {
+                toast('Name and YAML are required', 'error');
+                return;
+            }
+
+            try {
+                if (isEdit) {
+                    await api.put(`/api/rules/${ruleId}`, { name, yaml_content: yaml, description: desc });
+                    toast('Rule updated!', 'success');
+                } else {
+                    await api.post('/api/rules/', { name, yaml_content: yaml, description: desc });
+                    toast('Rule created!', 'success');
+                    setTimeout(() => window.location.href = '/rules', 1000);
+                }
+            } catch (e) {
+                toast('Failed to save: ' + e.message, 'error');
+            }
+        }
+
+        loadRule();
+    </script>
+</body>
+</html>

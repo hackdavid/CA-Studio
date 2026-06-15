@@ -1,0 +1,34 @@
+# TestRule rule experiment
+# Category: experimental
+# Generated from rule: reference_code/rules/TestRule.txt
+
+name: testrule-baseline
+rule: TestRule
+num_states: 2
+description: TestRule rule experiment
+category: experimental
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/testrule-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1

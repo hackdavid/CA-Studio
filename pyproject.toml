@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ca-lab"
+version = "0.1.0"
+description = "A reproducible multi-state cellular automaton laboratory"
+readme = "docs/README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Roehampton CA Lab", email = "ca-lab@roehampton.ac.uk"}
+]
+keywords = ["cellular-automata", "simulation", "emergence", "education", "research"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pydantic>=2.0",
+    "typer>=0.9",
+    "msgpack>=1.0",
+    "imageio>=2.31",
+    "pandas>=2.0",
+    "pyarrow>=12.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+pygame = ["pygame>=2.5"]
+web = ["fastapi>=0.100", "uvicorn>=0.23", "websockets>=11.0"]
+jupyter = ["ipycanvas>=0.13", "ipywidgets>=8.0", "matplotlib>=3.7"]
+terminal = ["rich>=13.0", "blessed>=1.20"]
+dev = [
+    "pytest>=7.4",
+    "pytest-benchmark>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5",
+]
+all = [
+    "ca-lab[pygame,web,jupyter,terminal,dev]"
+]
+
+[project.scripts]
+ca-lab = "cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/roehampton/ca-lab"
+Documentation = "https://roehampton.github.io/ca-lab"
+Repository = "https://github.com/roehampton/ca-lab"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ca_engine*", "cli*", "web*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation — CA Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        dark: { 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 8px;
+        }
+        #sim-canvas {
+            image-rendering: pixelated;
+            cursor: crosshair;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border: 2px solid #1e293b;
+            background: white;
+        }
+        .btn-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15); }
+        .btn-hover:active { transform: translateY(0); }
+        .metric-card { transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateX(4px); background: rgba(59, 130, 246, 0.05); }
+        .state-btn { transition: all 0.2s ease; }
+        .state-btn:hover { transform: scale(1.15); }
+        .state-btn.active { transform: scale(1.2); box-shadow: 0 0 0 3px white, 0 0 0 5px #3b82f6; }
+        .control-btn { transition: all 0.2s; }
+        .control-btn:hover { transform: scale(1.05); }
+        .control-btn:active { transform: scale(0.95); }
+        .status-dot { animation: pulse-glow 2s infinite; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.3); } 50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .tool-icon { transition: all 0.2s; }
+        .tool-icon:hover { transform: rotate(5deg) scale(1.1); }
+        .grid-toggle { transition: all 0.2s; }
+        .grid-toggle:hover { transform: scale(1.05); }
+        .grid-toggle.active { background: #3b82f6; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+    <!-- Top Navbar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg">🔬</div>
+            <div>
+                <div class="font-bold text-gray-900 leading-tight">CA Lab</div>
+                <div class="text-xs text-gray-500">Cellular Automaton Laboratory</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-1">
+            <a href="/" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all text-sm font-medium">Home</a>
+            <a href="/rules" class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all text-sm font-medium">Rules</a>
+            <a href="/sessions" class="px-4 py-2 rounded-lg bg-primary-50 text-primary-700 transition-all text-sm font-medium">Sessions</a>
+        </div>
+    </nav>
+
+    <!-- Main 3-Column Layout -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- LEFT SIDEBAR (Controls) - 10% width, min 200px -->
+        <aside class="w-[10%] min-w-[200px] bg-white border-r border-gray-200 flex flex-col shadow-sm z-40">
+            <div class="p-4 border-b border-gray-100">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Controls</div>
+                <div class="flex flex-col gap-2">
+                    <button id="btn-start" onclick="sim.start()" class="control-btn btn-hover bg-primary-600 hover:bg-primary-700 text-white px-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-primary-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                        Start
+                    </button>
+                    <button id="btn-pause" onclick="sim.pause()" class="control-btn btn-hover bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-amber-200">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4h3v12H5V4zm7 0h3v12h-3V4z"/></svg>
+                        Pause
+                    </button>
+                    <button onclick="sim.step(1)" class="control-btn btn-hover bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 4.11A1.5 1.5 0 016 2.62l9.344 5.89a1.5 1.5 0 010 2.538L6 17.038a1.5 1.5 0 01-2.3-1.269V4.11zM14 4h2v12h-2V4z"/></svg>
+                        Step
+                    </button>
+                    <button onclick="sim.reset()" class="control-btn btn-hover bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-700 px-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Speed Control -->
+            <div class="p-4 border-b border-gray-100">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Speed</div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500">1x</span>
+                    <input type="range" id="speed-slider" min="1" max="60" value="10" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600">
+                    <span class="text-xs text-gray-500">60x</span>
+                </div>
+                <div class="text-center text-sm font-semibold text-primary-600 mt-1" id="speed-value">10 fps</div>
+            </div>
+
+            <!-- Grid Toggle -->
+            <div class="p-4 border-b border-gray-100">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">View</div>
+                <button id="grid-toggle" onclick="toggleGrid()" class="grid-toggle active w-full px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border border-gray-200 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16M8 6v12M12 6v12M16 6v12"/></svg>
+                    Grid Lines
+                </button>
+            </div>
+
+            <!-- Brush States -->
+            <div class="p-4 border-b border-gray-100">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Brush</div>
+                <div class="flex flex-col gap-2" id="brush-container">
+                    <!-- Brush buttons injected by JS -->
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="p-4 mt-auto">
+                <div class="flex items-center gap-2 text-sm">
+                    <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400 status-dot"></div>
+                    <span id="status-text" class="font-medium text-gray-600">Disconnected</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">Step <span id="step-display">0</span></div>
+            </div>
+        </aside>
+
+        <!-- CENTER (Grid Canvas) - 80% width -->
+        <main class="flex-1 flex flex-col bg-gray-100 relative">
+            <!-- Session Info Bar -->
+            <div class="bg-white px-6 py-3 border-b border-gray-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-primary-500"></div>
+                    <div>
+                        <h1 class="font-bold text-gray-900 text-sm" id="session-name">Loading...</h1>
+                        <p class="text-xs text-gray-500" id="session-meta">...</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="snapshot()" class="tool-icon px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium transition-all">
+                        💾 Save
+                    </button>
+                    <button onclick="exportSession()" class="tool-icon px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium transition-all">
+                        📤 Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Canvas Area - FULL SIZE -->
+            <div class="flex-1 relative overflow-hidden bg-gray-100">
+                <div class="canvas-wrapper" id="canvas-wrapper">
+                    <canvas id="sim-canvas"></canvas>
+                </div>
+                <!-- Overlay info -->
+                <div class="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-3">
+                    <span id="grid-dims">0×0</span>
+                    <span class="text-gray-400">|</span>
+                    <span>Cell: <span id="cell-size">0</span>px</span>
+                    <span class="text-gray-400">|</span>
+                    <span id="grid-status">Grid: ON</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR (Metrics) - 10% width, min 200px -->
+        <aside class="w-[10%] min-w-[200px] bg-white border-l border-gray-200 flex flex-col shadow-sm z-40">
+            <div class="p-4 border-b border-gray-100">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Metrics</div>
+            </div>
+
+            <!-- Metrics Display -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin p-4">
+                <div class="space-y-2" id="metrics-container">
+                    <div class="metric-card p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">Step</div>
+                        <div class="text-xl font-bold text-gray-900 font-mono" id="metric-step">0</div>
+                    </div>
+                    <div class="metric-card p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">Density</div>
+                        <div class="text-xl font-bold text-primary-600 font-mono" id="metric-density">0.0000</div>
+                    </div>
+                    <div class="metric-card p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">Entropy</div>
+                        <div class="text-xl font-bold text-emerald-600 font-mono" id="metric-entropy">0.0000</div>
+                    </div>
+                    <div class="metric-card p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div class="text-xs text-gray-500 mb-1">Live Cells</div>
+                        <div class="text-xl font-bold text-amber-600 font-mono" id="metric-live">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="p-4 border-t border-gray-100 bg-gray-50">
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Export</div>
+                <div class="flex flex-col gap-2">
+                    <button onclick="exportYAML()" class="btn-hover text-left px-3 py-2 rounded-lg bg-white hover:bg-primary-50 text-gray-700 text-xs font-medium border border-gray-200 transition-all">
+                        📄 Export YAML
+                    </button>
+                    <button onclick="exportPNG()" class="btn-hover text-left px-3 py-2 rounded-lg bg-white hover:bg-primary-50 text-gray-700 text-xs font-medium border border-gray-200 transition-all">
+                        🖼️ Export PNG
+                    </button>
+                    <button onclick="exportCSV()" class="btn-hover text-left px-3 py-2 rounded-lg bg-white hover:bg-primary-50 text-gray-700 text-xs font-medium border border-gray-200 transition-all">
+                        📊 Export CSV
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        const sessionId = window.location.pathname.split('/').pop();
+        let sim = null;
+        let currentBrush = 1;
+        let currentPalette = [];
+        let currentGrid = null;
+        let cellSize = 20;
+        let isPainting = false;
+        let showGrid = true;
+        let canvasDirty = false;
+
+        async function loadSession() {
+            try {
+                const session = await api.get(`/api/sessions/${sessionId}`);
+                document.getElementById('session-name').textContent = session.name;
+                document.getElementById('session-meta').textContent =
+                    `${session.rule_name} · ${session.board_width}×${session.board_height} · ${session.neighbourhood}`;
+
+                const h = session.board_height;
+                const w = session.board_width;
+
+                const canvas = document.getElementById('sim-canvas');
+                // Set internal resolution to exactly grid dimensions
+                // Each cell = 1 pixel internally, CSS will scale it up
+                canvas.width = w;
+                canvas.height = h;
+
+                document.getElementById('grid-dims').textContent = `${w}×${h}`;
+
+                // Create brush buttons
+                createBrushButtons(session.num_states);
+
+                // Load initial grid
+                await loadGrid(session);
+
+                // Connect WebSocket
+                initWebSocket();
+            } catch (e) {
+                toast('Failed to load session: ' + e.message, 'error');
+            }
+        }
+
+        function createBrushButtons(numStates) {
+            const container = document.getElementById('brush-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < numStates; i++) {
+                const btn = document.createElement('button');
+                const color = getStateColor(i, numStates);
+                btn.className = `state-btn flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all ${i === currentBrush ? 'active border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`;
+                btn.onclick = () => setBrush(i);
+
+                const square = document.createElement('div');
+                square.className = 'w-6 h-6 rounded-lg shadow-sm border border-gray-200';
+                square.style.backgroundColor = `rgb(${color[0]},${color[1]},${color[2]})`;
+
+                const label = document.createElement('span');
+                label.className = 'text-sm font-semibold text-gray-700';
+                label.textContent = i === 0 ? 'Empty' : `State ${i}`;
+
+                btn.appendChild(square);
+                btn.appendChild(label);
+                container.appendChild(btn);
+            }
+        }
+
+        function getStateColor(state, numStates) {
+            if (state === 0) return [255, 255, 255];  // White background for empty cells
+            const hue = ((state - 1) / Math.max(1, numStates - 2)) * 0.9;
+            return hsbToRgb(hue, 1.0, 1.0);
+        }
+
+        function setBrush(state) {
+            currentBrush = state;
+            const buttons = document.getElementById('brush-container').children;
+            for (let i = 0; i < buttons.length; i++) {
+                const btn = buttons[i];
+                if (i === state) {
+                    btn.className = 'state-btn active flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-primary-600 bg-primary-50 transition-all';
+                } else {
+                    btn.className = 'state-btn flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-gray-200 hover:border-gray-300 bg-white transition-all';
+                }
+            }
+        }
+
+        function toggleGrid() {
+            showGrid = !showGrid;
+            const btn = document.getElementById('grid-toggle');
+            if (showGrid) {
+                btn.className = 'grid-toggle active w-full px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border border-gray-200 transition-all';
+                document.getElementById('grid-status').textContent = 'Grid: ON';
+            } else {
+                btn.className = 'grid-toggle w-full px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border border-gray-200 bg-white text-gray-700 transition-all';
+                document.getElementById('grid-status').textContent = 'Grid: OFF';
+            }
+            drawGrid();
+        }
+
+        async function loadGrid(session) {
+            try {
+                const resp = await api.get(`/api/sessions/${sessionId}/grid`);
+                if (resp.grid) {
+                    currentGrid = resp.grid;
+                    currentPalette = [];
+                    const numStates = session.num_states;
+                    for (let i = 0; i < numStates; i++) {
+                        currentPalette.push(getStateColor(i, numStates));
+                    }
+                    drawGrid();
+                } else {
+                    // Initialize empty grid
+                    const h = session.board_height;
+                    const w = session.board_width;
+                    currentGrid = [];
+                    for (let y = 0; y < h; y++) {
+                        const row = [];
+                        for (let x = 0; x < w; x++) {
+                            row.push(0);
+                        }
+                        currentGrid.push(row);
+                    }
+                    currentPalette = [];
+                    for (let i = 0; i < session.num_states; i++) {
+                        currentPalette.push(getStateColor(i, session.num_states));
+                    }
+                    drawGrid();
+                }
+            } catch (e) {
+                console.log('No grid yet, initializing empty');
+            }
+        }
+
+        function drawGrid() {
+            if (!currentGrid) return;
+            const canvas = document.getElementById('sim-canvas');
+            const ctx = canvas.getContext('2d');
+            const h = currentGrid.length;
+            const w = currentGrid[0].length;
+
+            // Create ImageData for pixel-perfect rendering
+            const imageData = ctx.createImageData(w, h);
+            const data = imageData.data;
+
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const state = currentGrid[y][x];
+                    const color = currentPalette[state] || [255, 255, 255];
+                    const idx = (y * w + x) * 4;
+                    data[idx] = color[0];     // R
+                    data[idx + 1] = color[1]; // G
+                    data[idx + 2] = color[2]; // B
+                    data[idx + 3] = 255;      // A
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            // Draw grid lines as black borders between cells
+            if (showGrid) {
+                // Draw horizontal lines
+                ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                ctx.lineWidth = 1;
+                for (let y = 0; y <= h; y++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                    ctx.stroke();
+                }
+                // Draw vertical lines
+                for (let x = 0; x <= w; x++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Paint on a specific cell
+        function paintCell(x, y, state) {
+            if (!currentGrid || y < 0 || y >= currentGrid.length || x < 0 || x >= currentGrid[0].length) {
+                return;
+            }
+
+            // Update grid data
+            currentGrid[y][x] = state;
+
+            // Draw this cell immediately on canvas (1 pixel per cell)
+            const canvas = document.getElementById('sim-canvas');
+            const ctx = canvas.getContext('2d');
+            const color = currentPalette[state] || [255, 255, 255];
+            ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+            ctx.fillRect(x, y, 1, 1);
+
+            // Redraw grid lines around this cell
+            if (showGrid) {
+                ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                ctx.lineWidth = 1;
+                // Top line
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 1, y);
+                ctx.stroke();
+                // Left line
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y + 1);
+                ctx.stroke();
+                // Bottom line
+                ctx.beginPath();
+                ctx.moveTo(x, y + 1);
+                ctx.lineTo(x + 1, y + 1);
+                ctx.stroke();
+                // Right line
+                ctx.beginPath();
+                ctx.moveTo(x + 1, y);
+                ctx.lineTo(x + 1, y + 1);
+                ctx.stroke();
+            }
+
+            // Send to server via WebSocket
+            if (sim) sim.paint(x, y, state);
+        }
+
+        function initWebSocket() {
+            sim = new SimulationClient(sessionId, onFrame, onStatus);
+            sim.connect();
+        }
+
+        function onFrame(uint8Array) {
+            const h = currentGrid ? currentGrid.length : 64;
+            const w = currentGrid ? currentGrid[0].length : 64;
+            currentGrid = [];
+            for (let y = 0; y < h; y++) {
+                const row = [];
+                for (let x = 0; x < w; x++) {
+                    row.push(uint8Array[y * w + x]);
+                }
+                currentGrid.push(row);
+            }
+            drawGrid();
+        }
+
+        function onStatus(msg) {
+            if (msg.type === 'frame') {
+                document.getElementById('step-display').textContent = msg.step;
+                document.getElementById('metric-step').textContent = msg.step;
+                if (msg.metrics) {
+                    if (msg.metrics.density !== undefined) {
+                        document.getElementById('metric-density').textContent = msg.metrics.density.toFixed(4);
+                    }
+                    if (msg.metrics.entropy !== undefined) {
+                        document.getElementById('metric-entropy').textContent = msg.metrics.entropy.toFixed(4);
+                    }
+                    if (msg.metrics.live_cells !== undefined) {
+                        document.getElementById('metric-live').textContent = msg.metrics.live_cells;
+                    }
+                }
+            } else if (msg.type === 'status') {
+                updateStatus(msg.status);
+            } else if (msg.type === 'error') {
+                toast('Error: ' + msg.message, 'error');
+            } else if (msg.type === 'snapshot_saved') {
+                toast('Snapshot saved at step ' + msg.step, 'success');
+            }
+        }
+
+        function updateStatus(status) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const colors = {
+                running: 'bg-emerald-500',
+                paused: 'bg-amber-500',
+                stopped: 'bg-gray-400',
+                connected: 'bg-blue-500',
+                disconnected: 'bg-red-500'
+            };
+            dot.className = `w-2.5 h-2.5 rounded-full ${colors[status] || 'bg-gray-400'} status-dot`;
+            text.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            text.className = `font-medium ${status === 'running' ? 'text-emerald-600' : status === 'paused' ? 'text-amber-600' : 'text-gray-600'}`;
+
+            const startBtn = document.getElementById('btn-start');
+            const pauseBtn = document.getElementById('btn-pause');
+            if (status === 'running') {
+                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                pauseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                pauseBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Canvas painting with immediate visual feedback
+        const canvas = document.getElementById('sim-canvas');
+
+        canvas.addEventListener('mousedown', (e) => {
+            isPainting = true;
+            handlePaint(e);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isPainting) handlePaint(e);
+        });
+        canvas.addEventListener('mouseup', () => isPainting = false);
+        canvas.addEventListener('mouseleave', () => isPainting = false);
+
+        // Touch support for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isPainting = true;
+            const touch = e.touches[0];
+            handlePaintAt(touch.clientX, touch.clientY);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isPainting) {
+                const touch = e.touches[0];
+                handlePaintAt(touch.clientX, touch.clientY);
+            }
+        });
+        canvas.addEventListener('touchend', () => isPainting = false);
+
+        function handlePaint(e) {
+            handlePaintAt(e.clientX, e.clientY);
+        }
+
+        function handlePaintAt(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const canvas = document.getElementById('sim-canvas');
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.floor((clientX - rect.left) * scaleX);
+            const y = Math.floor((clientY - rect.top) * scaleY);
+            paintCell(x, y, currentBrush);
+        }
+
+        // Speed slider
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const fps = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = fps + ' fps';
+            if (sim) sim.speed(fps);
+        });
+
+        async function snapshot() {
+            if (sim) sim.snapshot();
+        }
+
+        async function exportSession() {
+            try {
+                const session = await api.get(`/api/sessions/${sessionId}`);
+                const data = {
+                    name: session.name,
+                    rule: session.rule_name,
+                    board: [session.board_width, session.board_height],
+                    neighbourhood: session.neighbourhood,
+                    num_states: session.num_states,
+                    seed: session.seed_config,
+                    current_step: session.current_step,
+                    metrics: session.metrics_enabled,
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${session.name}-step-${session.current_step}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast('Exported!', 'success');
+            } catch (e) {
+                toast('Export failed: ' + e.message, 'error');
+            }
+        }
+
+        function exportYAML() { exportSession(); }
+        function exportPNG() { toast('PNG export coming soon!', 'info'); }
+        function exportCSV() { toast('CSV export coming soon!', 'info'); }
+
+        function hsbToRgb(h, s, b) {
+            const i = Math.floor(h * 6);
+            const f = h * 6 - i;
+            const p = b * (1 - s);
+            const q = b * (1 - f * s);
+            const t = b * (1 - (1 - f) * s);
+            const rgb = [[b, t, p], [q, b, p], [p, b, t], [p, q, b], [t, p, b], [b, p, q]][i % 6];
+            return [Math.round(rgb[0] * 255), Math.round(rgb[1] * 255), Math.round(rgb[2] * 255)];
+        }
+
+        // Resize handler
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (currentGrid) {
+                    const h = currentGrid.length;
+                    const w = currentGrid[0].length;
+                    const wrapper = document.getElementById('canvas-wrapper');
+                    const wrapperRect = wrapper.getBoundingClientRect();
+                    const newCellSize = Math.floor(Math.min(wrapperRect.width / w, wrapperRect.height / h));
+                    if (newCellSize > 0 && Math.abs(newCellSize - cellSize) > 1) {
+                        cellSize = newCellSize;
+                        const canvas = document.getElementById('sim-canvas');
+                        canvas.width = w * cellSize;
+                        canvas.height = h * cellSize;
+                        document.getElementById('cell-size').textContent = cellSize;
+                        drawGrid();
+                    }
+                }
+            }, 100);
+        });
+
+        loadSession();
+    </script>
+</body>
+</html>

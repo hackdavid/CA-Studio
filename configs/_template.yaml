@@ -1,0 +1,32 @@
+# CA Lab Experiment Template
+# Copy this file and modify for your experiments
+# Run with: ca-lab run -f configs/your-config.yaml
+
+name: my-experiment
+rule: Conway
+description: "Template experiment config \u2014 copy and modify"
+board:
+- 64
+- 64
+neighbourhood: moore8
+num_states: 2
+seed:
+  type: single
+  state: 1
+  position: center
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/my-experiment
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true

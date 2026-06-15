@@ -1,0 +1,10 @@
+{
+  "ca_lab_version": "0.1.0",
+  "python_version": "3.12.4 | packaged by Anaconda, Inc. | (main, Jun 18 2024, 15:03:56) [MSC v.1929 64 bit (AMD64)]",
+  "experiment_name": "413-baseline",
+  "rule_path": "413",
+  "rule_sha256": "",
+  "config_sha256": "fb1ccafdb53446e20e6fe5529527cf06c0dd721ddea06fea04901ee8ef182419",
+  "global_seed": 42,
+  "timestamp_utc": "2026-06-08T14:42:45.886469+00:00"
+}

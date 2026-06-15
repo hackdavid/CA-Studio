@@ -1,0 +1,38 @@
+# C6 — 6-state compact rule set
+# Category: multi-state
+# Generated from rule: reference_code/rules/C6.txt
+
+name: c6-baseline
+rule: C6
+num_states: 6
+description: "C6 \u2014 6-state compact rule set"
+category: multi-state
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/c6-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5

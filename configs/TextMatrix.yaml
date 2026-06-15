@@ -1,0 +1,34 @@
+# TextMatrix rule experiment
+# Category: experimental
+# Generated from rule: reference_code/rules/TextMatrix.txt
+
+name: textmatrix-baseline
+rule: TextMatrix
+num_states: 2
+description: TextMatrix rule experiment
+category: experimental
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/textmatrix-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1

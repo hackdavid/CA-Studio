@@ -1,0 +1,222 @@
+# -R624
+# Auto-generated from rule table
+
+name: -R624
+version: '1.0'
+states: 71
+neighbourhood: moore8
+transitions:
+- from:
+  - 15
+  neighbors:
+  - 9
+  to: 15
+- from:
+  - 1
+  neighbors:
+  - 8
+  - 9
+  to: 0
+- from:
+  - 70
+  neighbors:
+  - 6
+  to: 70
+- from:
+  - 50
+  neighbors:
+  - 5
+  to: 15
+- from:
+  - 1
+  neighbors:
+  - 3
+  to: 70
+- from:
+  - 70
+  neighbors:
+  - 3
+  - 5
+  to: 15
+- from:
+  - 0
+  - 50
+  neighbors:
+  - 3
+  - 4
+  to: 1
+- from:
+  - 15
+  neighbors:
+  - 3
+  - 4
+  - 8
+  to: 0
+- from:
+  - 1
+  neighbors:
+  - 2
+  to: 15
+- from:
+  - 70
+  neighbors:
+  - 2
+  - 9
+  to: 0
+- from:
+  - 50
+  neighbors:
+  - 2
+  - 6
+  - 7
+  - 8
+  to: 50
+- from:
+  - 0
+  neighbors:
+  - 2
+  - 5
+  - 7
+  to: 70
+- from:
+  - 50
+  neighbors:
+  - 1
+  - 9
+  to: 70
+- from:
+  - 0
+  neighbors:
+  - 1
+  - 6
+  to: 15
+- from:
+  - 1
+  - 70
+  neighbors:
+  - 1
+  - 4
+  to: 1
+- from:
+  - 15
+  neighbors:
+  - 1
+  - 2
+  - 6
+  - 7
+  to: 70
+- from:
+  - 50
+  neighbors:
+  - 0
+  to: 0
+- from:
+  - 0
+  neighbors:
+  - 0
+  - 8
+  - 9
+  to: 0
+- from:
+  - 70
+  neighbors:
+  - 0
+  - 7
+  - 8
+  to: 50
+- from:
+  - 15
+  neighbors:
+  - 0
+  - 5
+  to: 1
+- from:
+  - 1
+  neighbors:
+  - 0
+  - 5
+  - 6
+  - 7
+  to: 50
+- from:
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
+  - 28
+  - 29
+  - 30
+  - 31
+  - 32
+  - 33
+  - 34
+  - 35
+  - 36
+  - 37
+  - 38
+  - 39
+  - 40
+  - 41
+  - 42
+  - 43
+  - 44
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 56
+  - 57
+  - 58
+  - 59
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  - 66
+  - 67
+  - 68
+  - 69
+  neighbors:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  to: 0
+description: 'Legacy rule: -R624'
+source: reference_code/rules/-R624.txt
+converted: true

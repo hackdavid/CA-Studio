@@ -1,0 +1,34 @@
+# Dormancy behaviour C — 2-state dormancy variant
+# Category: experimental
+# Generated from rule: reference_code/rules/DormancyC.txt
+
+name: dormancyc-baseline
+rule: DormancyC
+num_states: 2
+description: "Dormancy behaviour C \u2014 2-state dormancy variant"
+category: experimental
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/dormancyc-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1

@@ -1,0 +1,34 @@
+# 1builder183-AISB rule experiment
+# Category: experimental
+# Generated from rule: reference_code/rules/1builder183-AISB.txt
+
+name: 1builder183-aisb-baseline
+rule: 1builder183-AISB
+num_states: 2
+description: 1builder183-AISB rule experiment
+category: experimental
+board:
+- 64
+- 64
+neighbourhood: moore8
+steps: 500
+global_seed: 42
+metrics:
+- density
+- entropy
+renderer: pygame
+cell_size: 8
+show_grid: true
+log:
+  enabled: true
+  output_dir: runs/1builder183-aisb-baseline
+  format: csv
+  metrics_every: 1
+  frames_every: null
+  animation: false
+  provenance: true
+seed:
+  type: random
+  density: 0.3
+  states:
+  - 1

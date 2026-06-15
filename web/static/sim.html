@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulation — CA Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Crimson Pro', 'serif'],
+            sans: ['Atkinson Hyperlegible', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f5f9', 100: '#d9e5ef', 200: '#b8cfe0', 300: '#8bb1cd',
+              400: '#5c8fb7', 500: '#3d73a2', 600: '#2f5c87', 700: '#284b6e',
+              800: '#1e3a5f', 900: '#1b3252',
+            },
+            accent: {
+              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+              400: '#4ade80', 500: '#22c55e', 600: '#059669', 700: '#047857',
+            }
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Canvas fills the entire center panel */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .canvas-container canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+
+    /* Controls */
+    .control-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .control-btn:hover:not(:disabled) {
+      transform: scale(1.03);
+    }
+    .control-btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .control-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .brush-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.625rem;
+      border: 2px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .brush-btn:hover:not(:disabled) {
+      border-color: #8bb1cd;
+      background: #f8fafc;
+    }
+    .brush-btn.active {
+      border-color: #2f5c87;
+      background: #f0f5f9;
+      box-shadow: 0 0 0 1px #2f5c87;
+    }
+    .brush-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .brush-swatch {
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    .brush-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+      gap: 0.375rem;
+    }
+    .brush-swatch-btn {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.5rem;
+      border: 2px solid #e2e8f0;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+    }
+    .brush-swatch-btn:hover:not(:disabled) {
+      border-color: #8bb1cd;
+      transform: scale(1.05);
+    }
+    .brush-swatch-btn.active {
+      border-color: #2f5c87;
+      box-shadow: 0 0 0 2px rgba(47, 92, 135, 0.25);
+    }
+    .brush-swatch-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Metrics card */
+    .metric-card {
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+    .metric-card:hover {
+      background: rgba(248, 250, 252, 0.8);
+      border-color: #8bb1cd;
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      border-radius: 12px;
+      background: #cbd5e1;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .toggle-switch.active {
+      background: #2f5c87;
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    /* Status indicator */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-ready { background: #f1f5f9; color: #475569; }
+    .status-running { background: #dcfce7; color: #166534; }
+    .status-paused { background: #fef9c3; color: #854d0e; }
+
+    /* Hover effects */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans bg-slate-50 text-slate-900 h-screen overflow-hidden flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <nav class="flex-shrink-0 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 shadow-sm">
+    <div class="flex items-center gap-4">
+      <a href="/landing" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-700 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">CA</div>
+        <div>
+          <div class="font-serif font-semibold text-base text-primary-900">Simulation</div>
+        </div>
+      </a>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <span id="sim-status-badge" class="status-indicator status-ready">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+        Ready
+      </span>
+      <span id="sim-step-display" class="text-xs font-mono text-slate-600">Step: 0</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="saveSimulation()" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+        Save
+      </button>
+      <button onclick="exportImage()" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        Export
+      </button>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <a href="/dashboard" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-300 rounded-lg hover:bg-primary-100 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Dashboard
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content: 10% - 80% - 10% Layout -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Left Panel: 10% - Controls & Options -->
+    <aside class="flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
+      <div class="p-4 space-y-5">
+
+        <!-- Playback Controls -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Controls
+          </h3>
+          <div class="space-y-2">
+            <button id="btn-start" onclick="startSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary-600 to-blue-600 text-white font-bold rounded-xl hover:from-primary-700 hover:to-blue-700 transition-all shadow-md shadow-primary-500/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Start
+            </button>
+            <button id="btn-pause" onclick="pauseSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 font-semibold rounded-lg border-2 border-slate-300 hover:border-primary-400 hover:text-primary-700 transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Pause
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-step" onclick="stepOnce()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                Step
+              </button>
+              <button id="btn-reset" onclick="resetSim()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Speed Control -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Speed
+          </h3>
+          <div class="space-y-3">
+            <input type="range" min="10" max="500" value="100" step="10" id="speed-slider" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="updateSpeed(this.value)">
+            <div class="flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-500">Fast</span>
+              <span id="speed-display" class="font-bold text-primary-700">100ms</span>
+              <span class="text-slate-500">Slow</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- State brush picker -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+            Brush (K states)
+          </h3>
+          <p id="draw-hint" class="text-xs text-slate-500 mb-2">Select a color, then paint on the grid.</p>
+          <div id="brush-container" class="brush-grid"></div>
+        </div>
+
+        <!-- View Options -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            View
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-700 font-medium">Grid Lines</span>
+              <div class="toggle-switch active" onclick="toggleGrid(this)"></div>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-700 font-medium">Cell Numbers</span>
+              <div class="toggle-switch" onclick="toggleCellNumbers(this)"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Center Panel: full-width canvas -->
+    <main class="flex-1 flex flex-col overflow-hidden min-w-0 bg-white">
+      <div class="flex-1 min-h-0">
+        <div class="canvas-container h-full w-full" id="canvas-container">
+          <canvas id="main-canvas"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel: Metrics -->
+    <aside class="flex-shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
+      <div class="p-4 space-y-4">
+
+        <!-- Metrics Header -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Metrics
+          </h3>
+          <p class="text-xs text-slate-500">Real-time analysis</p>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="space-y-3">
+          <!-- Density -->
+          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div class="flex items-start justify-between mb-2">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-100 to-blue-100 flex items-center justify-center">
+                <svg class="w-4 h-4 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 font-medium mb-1">Density</div>
+            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-density">0.450</div>
+            <div class="text-xs text-slate-500 mt-1">Fraction alive</div>
+          </div>
+
+          <!-- Entropy -->
+          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div class="flex items-start justify-between mb-2">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-100 to-green-100 flex items-center justify-center">
+                <svg class="w-4 h-4 text-accent-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 font-medium mb-1">Entropy</div>
+            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-entropy">0.892</div>
+            <div class="text-xs text-slate-500 mt-1">Shannon H</div>
+          </div>
+
+          <!-- Activity -->
+          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div class="flex items-start justify-between mb-2">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                <svg class="w-4 h-4 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 font-medium mb-1">Activity</div>
+            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-activity">12.3%</div>
+            <div class="text-xs text-slate-500 mt-1">Changed/step</div>
+          </div>
+
+          <!-- Stability -->
+          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div class="flex items-start justify-between mb-2">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <svg class="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 font-medium mb-1">Stability</div>
+            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-stability">87%</div>
+            <div class="text-xs text-slate-500 mt-1">Pattern stable</div>
+          </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="pt-4 border-t border-slate-200">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Session Info</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-600">Board Size</span>
+              <span class="font-mono font-bold text-slate-900" id="info-board-size">64×64</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Cell Size</span>
+              <span class="font-mono font-bold text-slate-900" id="info-cell-size">12px</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">States (K)</span>
+              <span class="font-mono font-bold text-slate-900" id="info-states">2</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Rule</span>
+              <span class="font-mono font-bold text-primary-700" id="info-rule">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+  <script>
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const sessionId = pathParts[0] === 'simulation' && pathParts[1] ? pathParts[1] : null;
+
+    let sim = null;
+    let currentBrush = 1;
+    let currentPalette = [];
+    let currentGrid = null;
+    let showGrid = true;
+    let isPainting = false;
+    let boardWidth = 64;
+    let boardHeight = 64;
+    let cellWidth = 10;
+    let cellHeight = 10;
+    let displayW = 0;
+    let displayH = 0;
+    let canvasReady = false;
+
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    let simRunState = 'stopped';
+
+    function getStateColor(state, numStates) {
+      if (state === 0) return [255, 255, 255];
+      if (state === 1 && numStates <= 2) return [37, 99, 235]; // primary blue for binary CA
+      const hue = ((state - 1) / Math.max(1, numStates - 2)) * 0.9;
+      return hsbToRgb(hue, 0.85, 0.95);
+    }
+
+    function hsbToRgb(h, s, b) {
+      const i = Math.floor(h * 6);
+      const f = h * 6 - i;
+      const p = b * (1 - s);
+      const q = b * (1 - f * s);
+      const t = b * (1 - (1 - f) * s);
+      const rgb = [[b, t, p], [q, b, p], [p, b, t], [p, q, b], [t, p, b], [b, p, q]][i % 6];
+      return [Math.round(rgb[0] * 255), Math.round(rgb[1] * 255), Math.round(rgb[2] * 255)];
+    }
+
+    function computeCellDimensions(w, h) {
+      const container = document.getElementById('canvas-container');
+      const displayW = Math.max(container.clientWidth, 1);
+      const displayH = Math.max(container.clientHeight, 1);
+      return {
+        cellWidth: displayW / w,
+        cellHeight: displayH / h,
+        displayW,
+        displayH,
+      };
+    }
+
+    function drawGridLines(w, h, displayW, displayH) {
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x++) {
+        const px = x * cellWidth + 0.5;
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, displayH);
+      }
+      for (let y = 0; y <= h; y++) {
+        const py = y * cellHeight + 0.5;
+        ctx.moveTo(0, py);
+        ctx.lineTo(displayW, py);
+      }
+      ctx.stroke();
+    }
+
+    function setupCanvas(w, h) {
+      const dims = computeCellDimensions(w, h);
+      cellWidth = dims.cellWidth;
+      cellHeight = dims.cellHeight;
+      displayW = dims.displayW;
+      displayH = dims.displayH;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.round(displayW * dpr);
+      canvas.height = Math.round(displayH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvasReady = true;
+
+      const cellLabel = Math.round(cellWidth) === Math.round(cellHeight)
+        ? `${Math.round(cellWidth)}px`
+        : `${Math.round(cellWidth)}×${Math.round(cellHeight)}px`;
+      document.getElementById('info-cell-size').textContent = cellLabel;
+    }
+
+    function drawCell(x, y) {
+      if (!currentGrid || !canvasReady) return;
+      const state = currentGrid[y][x];
+      const px = x * cellWidth;
+      const py = y * cellHeight;
+
+      if (state === 0) {
+        ctx.fillStyle = '#ffffff';
+      } else {
+        const color = currentPalette[state] || [255, 255, 255];
+        ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+      }
+      ctx.fillRect(px, py, cellWidth, cellHeight);
+
+      if (showGrid) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 0.5, py);
+        ctx.lineTo(px + 0.5, py + cellHeight);
+        ctx.moveTo(px, py + 0.5);
+        ctx.lineTo(px + cellWidth, py + 0.5);
+        if (x + 1 < boardWidth) {
+          ctx.moveTo(px + cellWidth + 0.5, py);
+          ctx.lineTo(px + cellWidth + 0.5, py + cellHeight);
+        }
+        if (y + 1 < boardHeight) {
+          ctx.moveTo(px, py + cellHeight + 0.5);
+          ctx.lineTo(px + cellWidth, py + cellHeight + 0.5);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function drawGrid() {
+      if (!currentGrid) return;
+      const h = currentGrid.length;
+      const w = currentGrid[0].length;
+      setupCanvas(w, h);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, displayW, displayH);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const state = currentGrid[y][x];
+          if (state === 0) continue;
+          const color = currentPalette[state] || [255, 255, 255];
+          ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+          ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+        }
+      }
+
+      if (showGrid) {
+        drawGridLines(w, h, displayW, displayH);
+      }
+    }
+
+    function cloneGrid(grid) {
+      return grid.map(row => row.slice());
+    }
+
+    function onFrame(uint8Array) {
+      const h = boardHeight;
+      const w = boardWidth;
+      currentGrid = [];
+      for (let y = 0; y < h; y++) {
+        const row = [];
+        for (let x = 0; x < w; x++) {
+          row.push(uint8Array[y * w + x]);
+        }
+        currentGrid.push(row);
+      }
+      drawGrid();
+    }
+
+    function syncControlButtons() {
+      const running = simRunState === 'running';
+      const paused = simRunState === 'paused' || simRunState === 'stopped';
+      const canDraw = !running;
+
+      const btnStart = document.getElementById('btn-start');
+      const btnPause = document.getElementById('btn-pause');
+      const btnStep = document.getElementById('btn-step');
+      const btnReset = document.getElementById('btn-reset');
+
+      if (btnStart) btnStart.disabled = running;
+      if (btnPause) btnPause.disabled = !running;
+      if (btnStep) btnStep.disabled = running;
+      if (btnReset) btnReset.disabled = running;
+
+      document.querySelectorAll('.brush-swatch-btn').forEach(btn => {
+        btn.disabled = !canDraw;
+      });
+
+      const hint = document.getElementById('draw-hint');
+      if (hint) {
+        hint.textContent = running
+          ? 'Pause to edit the grid.'
+          : 'Select a state, then paint on the grid.';
+        hint.className = running
+          ? 'text-xs text-amber-600 font-medium mb-2'
+          : 'text-xs text-slate-500 mb-2';
+      }
+    }
+
+    function updateStatus(status) {
+      simRunState = status;
+      syncControlButtons();
+      const badge = document.getElementById('sim-status-badge');
+      const labels = {
+        running: ['status-running', 'bg-green-600 animate-pulse', 'Running'],
+        paused: ['status-paused', 'bg-yellow-600', 'Paused'],
+        stopped: ['status-ready', 'bg-slate-400', 'Ready'],
+        connected: ['status-ready', 'bg-blue-500', 'Ready'],
+        disconnected: ['status-paused', 'bg-red-500', 'Offline'],
+      };
+      const [cls, dotCls, text] = labels[status] || labels.stopped;
+      badge.className = `status-indicator ${cls}`;
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dotCls}"></span>${text}`;
+    }
+
+    function createBrushButtons(numStates) {
+      const container = document.getElementById('brush-container');
+      if (!container) return;
+      container.innerHTML = '';
+      for (let i = 0; i < numStates; i++) {
+        const color = currentPalette[i] || [255, 255, 255];
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `brush-swatch-btn${i === currentBrush ? ' active' : ''}`;
+        btn.dataset.state = String(i);
+        btn.title = i === 0 ? 'Empty (0)' : `State ${i}`;
+        btn.style.backgroundColor = `rgb(${color[0]},${color[1]},${color[2]})`;
+        btn.onclick = () => setBrush(i);
+        container.appendChild(btn);
+      }
+      syncControlButtons();
+    }
+
+    function setBrush(state) {
+      currentBrush = state;
+      document.querySelectorAll('.brush-swatch-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.state, 10) === state);
+      });
+    }
+
+    function onStatus(msg) {
+      if (msg.type === 'frame') {
+        document.getElementById('sim-step-display').textContent = `Step: ${msg.step}`;
+        if (msg.metrics) {
+          if (msg.metrics.density !== undefined) {
+            document.getElementById('metric-density').textContent = Number(msg.metrics.density).toFixed(3);
+          }
+          if (msg.metrics.entropy !== undefined) {
+            document.getElementById('metric-entropy').textContent = Number(msg.metrics.entropy).toFixed(3);
+          }
+          if (msg.metrics.live_cells !== undefined) {
+            const total = boardWidth * boardHeight;
+            const pct = total ? (msg.metrics.live_cells / total * 100) : 0;
+            document.getElementById('metric-activity').textContent = `${pct.toFixed(1)}%`;
+          }
+        }
+      } else if (msg.type === 'status') {
+        updateStatus(msg.status);
+      } else if (msg.type === 'error') {
+        toast('Error: ' + msg.message, 'error');
+      }
+    }
+
+    async function loadSession() {
+      if (!sessionId) {
+        toast('No session ID. Create a session from the dashboard.', 'error');
+        setTimeout(() => { window.location.href = '/dashboard'; }, 2000);
+        return;
+      }
+      try {
+        const session = await api.get(`/api/sessions/${sessionId}`);
+        boardWidth = session.board_width;
+        boardHeight = session.board_height;
+        document.getElementById('info-board-size').textContent = `${boardWidth}×${boardHeight}`;
+        document.getElementById('info-states').textContent = session.num_states;
+        document.getElementById('info-rule').textContent = session.rule_name;
+
+        currentPalette = [];
+        for (let i = 0; i < session.num_states; i++) {
+          currentPalette.push(getStateColor(i, session.num_states));
+        }
+
+        createBrushButtons(session.num_states);
+
+        try {
+          const resp = await api.get(`/api/sessions/${sessionId}/grid`);
+          if (resp.grid) {
+            currentGrid = cloneGrid(resp.grid);
+            drawGrid();
+          }
+        } catch (_) {
+          currentGrid = Array.from({ length: boardHeight }, () => Array(boardWidth).fill(0));
+          drawGrid();
+        }
+
+        sim = new SimulationClient(sessionId, onFrame, onStatus);
+        sim.connect();
+      } catch (e) {
+        toast('Failed to load session: ' + e.message, 'error');
+      }
+    }
+
+    function startSim() {
+      if (!sim || !currentGrid) return;
+      sim.start(currentGrid);
+    }
+    function pauseSim() { if (sim) sim.pause(); }
+    function stepOnce() { if (sim) sim.step(1); }
+    function resetSim() { if (sim) sim.reset(); }
+
+    function updateSpeed(value) {
+      const ms = parseInt(value, 10);
+      document.getElementById('speed-display').textContent = `${ms}ms`;
+      if (sim) {
+        const fps = Math.max(1, Math.min(60, Math.round(1000 / ms)));
+        sim.speed(fps);
+      }
+    }
+
+    function toggleGrid(element) {
+      element.classList.toggle('active');
+      showGrid = element.classList.contains('active');
+      drawGrid();
+    }
+
+    function toggleCellNumbers(element) {
+      element.classList.toggle('active');
+    }
+
+    function saveSimulation() {
+      if (sim) sim.snapshot();
+    }
+
+    function exportImage() {
+      const link = document.createElement('a');
+      link.download = `ca-lab-session-${sessionId}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    function paintCell(x, y, state) {
+      if (simRunState === 'running') return;
+      if (!currentGrid || y < 0 || y >= boardHeight || x < 0 || x >= boardWidth) return;
+      if (currentGrid[y][x] === state) return;
+      currentGrid[y][x] = state;
+      if (!canvasReady) {
+        drawGrid();
+      } else {
+        drawCell(x, y);
+      }
+      if (sim) sim.paint(x, y, state);
+    }
+
+    function handlePaintAt(clientX, clientY) {
+      if (simRunState === 'running') return;
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor((clientX - rect.left) * (boardWidth / rect.width));
+      const y = Math.floor((clientY - rect.top) * (boardHeight / rect.height));
+      paintCell(x, y, currentBrush);
+    }
+
+    canvas.addEventListener('mousedown', (e) => { isPainting = true; handlePaintAt(e.clientX, e.clientY); });
+    canvas.addEventListener('mousemove', (e) => { if (isPainting) handlePaintAt(e.clientX, e.clientY); });
+    canvas.addEventListener('mouseup', () => { isPainting = false; });
+    canvas.addEventListener('mouseleave', () => { isPainting = false; });
+    window.addEventListener('resize', () => drawGrid());
+
+    loadSession();
+  </script>
+</body>
+</html>

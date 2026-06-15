@@ -1,0 +1,218 @@
+# CA Lab Layout Reference
+
+## Landing Page
+```
+┌─────────────────────────────────────────────────────────────┐
+│  [CA Lab Logo]  Features  Research  Education  Docs  [Launch]│ ← Nav (fixed)
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌─────────────────────┐       ┌─────────────────────────┐  │
+│  │ Dynamic Cellular    │       │  [Live Conway Preview] │  │
+│  │ Automata Laboratory │       │   ┌─────────────────┐  │  │
+│  │                     │       │   │ Animated Canvas │  │  │
+│  │ Professional-grade  │       │   │ with Metrics    │  │  │
+│  │ platform for CA     │       │   └─────────────────┘  │  │
+│  │ research...         │       │   Density: 0.450       │  │
+│  │                     │       │   Entropy: 0.892       │  │
+│  │ [Start Experiment]  │       │                        │  │
+│  │ [Research Features] │       │   [Metrics Card]      │  │
+│  └─────────────────────┘       └────────[Stats Card]────┘  │
+│                                                               │
+├───────────────────────────────────────────────────────────────┤
+│  Research Features (6 cards in 3-column grid)                │
+│  ┌────────┐ ┌────────┐ ┌────────┐                           │
+│  │Custom  │ │Advanced│ │WebSocket                            │
+│  │Rules   │ │Metrics │ │Streaming│                           │
+│  └────────┘ └────────┘ └────────┘                           │
+│  ┌────────┐ ┌────────┐ ┌────────┐                           │
+│  │Interact│ │Session │ │Research│                            │
+│  │Canvas  │ │Manage  │ │Ready   │                            │
+│  └────────┘ └────────┘ └────────┘                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Dashboard Layout
+```
+┌────────────────────────────────────────────────────────────────┐
+│  [CA Lab]  Docs  [User]                              │ ← Top Nav (16px)
+├────────────────┬──────────────────────────────────────────────┤
+│ [New Session]  │  Your Research Sessions                     │
+│ ━━━━━━━━━━━━━ │                                              │
+│ Sessions | Rules | Metrics ← Tabs                           │
+│ ───────────── │  ┌────┐ ┌────┐ ┌────┐ ┌────┐              │
+│                │  │ 24 │ │ 8  │ │ 6  │ │156k│              │
+│ ┌───────────┐ │  │Sess│ │Rule│ │Metr│ │Step│ ← Quick Stats │
+│ │Conway Life│ │  └────┘ └────┘ └────┘ └────┘              │
+│ │Completed  │ │                                              │
+│ │64×64      │ │  Recent Sessions                            │
+│ └───────────┘ │  ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│                │  │ Conway   │ │ Wolfram  │ │ 3-State  │   │
+│ ┌───────────┐ │  │ Life     │ │ Rule 110 │ │ Cyclic   │   │
+│ │Wolfram 110│ │  │          │ │          │ │          │   │
+│ │Running    │ │  │ [View]   │ │ [View]   │ │ [Resume] │   │
+│ │128×128    │ │  └──────────┘ └──────────┘ └──────────┘   │
+│ └───────────┘ │                                              │
+│                │  (More sessions...)                          │
+│ ← Left Sidebar │  ← Main Content (80%)                       │
+│    (10%)       │                                              │
+└────────────────┴──────────────────────────────────────────────┘
+```
+
+## Simulation Layout (10% - 80% - 10%)
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  [CA Lab] Simulation  [Step: 245] [Save] [Export] [Dashboard]  │ ← Top Nav
+├─────────────┬────────────────────────────────────┬─────────────┤
+│             │                                    │             │
+│  CONTROLS   │         FULL-WIDTH CANVAS          │   METRICS   │
+│  (10%)      │              (80%)                 │   (10%)     │
+│             │                                    │             │
+│ ┌─────────┐│  ┌──────────────────────────────┐ │┌──────────┐ │
+│ │▶ Start  ││  │                              │ ││ Density  │ │
+│ │⏸ Pause  ││  │                              │ ││  0.450   │ │
+│ │⏭ Step   ││  │                              │ ││          │ │
+│ │↻ Reset  ││  │      CELLULAR AUTOMATON      │ ││ Entropy  │ │
+│ └─────────┘│  │          GRID                │ ││  0.892   │ │
+│             │  │                              │ ││          │ │
+│ Speed:      │  │  (Dynamic cell sizing:       │ ││ Activity │ │
+│ ─────●────  │  │   16×16 = 50px cells         │ ││  12.3%   │ │
+│ 100ms       │  │   64×64 = 12px cells         │ ││          │ │
+│             │  │   256×256 = 3px cells)       │ ││ Stability│ │
+│ ┌─────────┐│  │                              │ ││  87%     │ │
+│ │✏ Pencil ││  │                              │ ││          │ │
+│ │⌫ Eraser ││  │                              │ ││──────────│ │
+│ └─────────┘│  │                              │ ││Session   │ │
+│             │  │                              │ ││Info:     │ │
+│ Grid: ON    │  │                              │ ││64×64     │ │
+│ Numbers: OFF│  └──────────────────────────────┘ ││12px cell │ │
+│             │                                    ││K=2       │ │
+│             │                                    ││B3/S23    │ │
+└─────────────┴────────────────────────────────────┴─────────────┘
+```
+
+## Cell Sizing Examples
+
+### Small Board (16×16)
+```
+Canvas Area: 800px × 800px
+Cell Size: 50px × 50px
+Result: Large, easy-to-click cells
+
+┌──────────────────┐
+│ ██ ██ ██ ██ ██ ██ │  ← Each cell is 50px
+│ ██ ██ ██ ██ ██ ██ │
+│ ██ ██ ██ ██ ██ ██ │
+│ ██ ██ ██ ██ ██ ██ │
+└──────────────────┘
+```
+
+### Medium Board (64×64)
+```
+Canvas Area: 800px × 800px
+Cell Size: 12px × 12px
+Result: Balanced visibility
+
+┌────────────────────┐
+│ ▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ │  ← Each cell is 12px
+│ ▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ │
+│ ▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪ │
+│ ... (64 rows)       │
+└────────────────────┘
+```
+
+### Large Board (256×256)
+```
+Canvas Area: 800px × 800px
+Cell Size: 3px × 3px
+Result: Full pattern visible, no scrolling
+
+┌────────────────────┐
+│ ::::::::::::::::::::│  ← Each cell is 3px
+│ ::::::::::::::::::::│     (65,536 cells total)
+│ ::::::::::::::::::::│
+│ ... (256 rows)      │
+└────────────────────┘
+```
+
+## Color System
+
+### Light Theme (UI Panels)
+```
+Background:  #f8fafc (slate-50)  ░░░░░░░░
+Cards:       #ffffff (white)     ████████
+Text:        #0f172a (slate-900) ████████
+Borders:     #e2e8f0 (slate-200) ▒▒▒▒▒▒▒▒
+```
+
+### Dark Theme (Canvas Only)
+```
+Background:  #0f172a → #1e293b gradient
+Alive Cells: HSL(variable, 65%, 55%) - Rainbow
+Dead Cells:  Transparent
+Grid Lines:  rgba(255, 255, 255, 0.05)
+```
+
+### Accent Colors
+```
+Primary:   #1e3a5f ████ Navy (professional)
+Accent:    #059669 ████ Green (success)
+Secondary: #2563eb ████ Blue (interactive)
+```
+
+## Status Indicators
+
+```
+Ready:     ● gray    (slate-400)
+Running:   ● green   (animate pulse)
+Paused:    ● yellow  (amber-600)
+Completed: ● blue    (blue-600)
+Error:     ● red     (red-600)
+```
+
+## Responsive Breakpoints
+
+### Mobile (375px)
+```
+┌─────────────┐
+│   Nav       │
+├─────────────┤
+│             │
+│  Controls   │ ← Stacked
+│             │   vertically
+├─────────────┤
+│             │
+│   Canvas    │
+│             │
+├─────────────┤
+│             │
+│   Metrics   │
+│             │
+└─────────────┘
+```
+
+### Tablet (768px)
+```
+┌─────────────────────────┐
+│         Nav             │
+├───────┬─────────────────┤
+│       │                 │
+│ Side  │   Main Content  │
+│ bar   │   (2 columns)   │
+│       │                 │
+└───────┴─────────────────┘
+```
+
+### Desktop (1024px+)
+```
+┌────────────────────────────────────┐
+│            Nav                     │
+├──────┬────────────────────┬────────┤
+│      │                    │        │
+│ 10%  │        80%         │  10%   │
+│      │                    │        │
+└──────┴────────────────────┴────────┘
+```
+
+---
+
+**Key Principle:** The 10%-80%-10% layout maximizes canvas visibility for research while keeping controls and metrics easily accessible. Canvas dynamically scales cells to fit any board size from 8×8 to 512×512.
