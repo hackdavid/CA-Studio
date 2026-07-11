@@ -278,6 +278,55 @@ async def get_snapshot(session_id: int, step_number: int) -> dict[str, Any]:
         await db.close()
 
 
+@router.get("/{session_id}/export.png")
+async def export_session_image(session_id: int) -> Any:
+    """Export the current grid as a PNG using the original image seed palette."""
+    import io
+    from fastapi.responses import StreamingResponse
+    from PIL import Image
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT board_width, board_height, num_states, seed_config, current_grid FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        d = dict(row)
+        w = d["board_width"]
+        h = d["board_height"]
+        num_states = d["num_states"]
+        seed_config = json.loads(d["seed_config"] or "{}")
+        grid_bytes = d["current_grid"]
+
+        if not grid_bytes:
+            raise HTTPException(status_code=400, detail="No grid data available")
+
+        grid = np.frombuffer(grid_bytes, dtype=np.uint8).reshape((h, w))
+
+        # Build palette: use image seed palette if available, else fallback
+        palette = seed_config.get("palette")
+        if palette and len(palette) >= num_states:
+            rgb = np.zeros((h, w, 3), dtype=np.uint8)
+            for s in range(min(len(palette), num_states)):
+                rgb[grid == s] = palette[s]
+        else:
+            # Fallback: grayscale
+            rgb = np.stack([grid, grid, grid], axis=-1)
+
+        img = Image.fromarray(rgb, "RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+
+        return StreamingResponse(buf, media_type="image/png")
+    finally:
+        await db.close()
+
+
 @router.get("/{session_id}/grid")
 async def get_grid(session_id: int) -> dict[str, Any]:
     """Get the current grid state as a 2D array."""

@@ -534,6 +534,7 @@ async function createSession() {
       image_data: smImageSeed.grid_data,
       quantize_mode: smImageSeed.mode,
       max_states: smImageSeed.num_states,
+      palette: smImageSeed.palette || null,
     };
   } else {
     const seedMap = {

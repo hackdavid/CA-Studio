@@ -62,5 +62,6 @@ async def upload_image(
         "num_states": result["num_states"],
         "unique_colors": result["unique_colors"],
         "thumbnail": result["thumbnail"],
+        "palette": result.get("palette") or [],
         "mode": mode,
     }

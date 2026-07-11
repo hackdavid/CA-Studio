@@ -17,6 +17,7 @@ from ca_engine.core.simulator import Simulator
 from ca_engine.core.board import Board
 from ca_engine.core.neighbourhood import Neighbourhood
 from ca_engine.core.palette import Palette
+from ca_engine.core.seed import SeedConfig
 from ca_engine.metrics.dynamic import DynamicMetricFactory
 from ca_engine.metrics.registry import MetricRegistry
 from ca_engine.rules.yaml_loader import YAMLRuleLoader
@@ -78,6 +79,7 @@ async def _load_simulator(session_id: int) -> Simulator:
 
         sim = Simulator(board, table, neighbourhood, palette)
         sim.step_num = row["current_step"] or 0
+        sim.session_seed_config = json.loads(row["seed_config"] or "{}")
 
         # Attach metrics
         metrics_enabled = json.loads(row["metrics_enabled"] or "[]")
@@ -131,21 +133,31 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
     fps = 10
     task: asyncio.Task | None = None
 
+    # Capture original grid for image fidelity
+    original_grid = sim.board.data.copy()
+    seed_config = sim.session_seed_config if hasattr(sim, 'session_seed_config') else {}
+    image_palette = seed_config.get('palette') if isinstance(seed_config, dict) else None
+
     async def send_frame() -> None:
         """Send current state to client."""
         grid = sim.board.data
         metrics = sim._collect_metrics()
 
-        # Send palette + grid as binary
-        # First send metadata JSON
+        # Compute image fidelity if an image seed was used
+        if image_palette is not None:
+            mse = float(np.mean((grid.astype(np.float32) - original_grid.astype(np.float32)) ** 2))
+            metrics["image_fidelity"] = round(mse, 4)
+
+        # Use image seed palette if available, else default
+        palette_colors = image_palette if image_palette else Palette.default(sim.board.data.max() + 1).colors.tolist()
+
         await websocket.send_json({
             "type": "frame",
             "step": sim.step_num,
             "metrics": metrics,
             "grid_shape": grid.shape,
-            "palette": Palette.default(sim.board.data.max() + 1).colors.tolist(),
+            "palette": palette_colors,
         })
-        # Then send raw grid bytes
         await websocket.send_bytes(grid.tobytes())
 
     async def simulation_loop() -> None:
@@ -213,7 +225,11 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
                 await websocket.send_json({"type": "status", "status": "paused", "step": sim.step_num})
 
             elif action == "reset":
-                sim.reset()
+                seed_cfg = sim.session_seed_config if hasattr(sim, 'session_seed_config') else {}
+                if seed_cfg and seed_cfg.get("type"):
+                    sim.reset(SeedConfig.model_validate(seed_cfg))
+                else:
+                    sim.reset()
                 await _save_session_state(session_id, sim)
                 await send_frame()
                 await websocket.send_json({"type": "status", "status": "stopped", "step": 0})

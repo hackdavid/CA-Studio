@@ -33,6 +33,7 @@ class SeedConfig(BaseModel):
     image_data: str | None = None  # For IMAGE: base64-encoded quantized grid
     quantize_mode: str = "rgb"  # For IMAGE: "rgb" or "grayscale"
     max_states: int = 64  # For IMAGE: quantization target
+    palette: list[list[int]] | None = None  # For IMAGE: original-color palette per state
 
     def apply(self, board: Any, rng: Any) -> None:
         """Apply this seed configuration to a board.

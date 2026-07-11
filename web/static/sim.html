@@ -449,7 +449,12 @@
     const ctx = canvas.getContext('2d');
     let simRunState = 'stopped';
 
+    let imagePalette = null;
+
     function getStateColor(state, numStates) {
+      if (imagePalette && state < imagePalette.length) {
+        return imagePalette[state];
+      }
       if (state === 0) return [255, 255, 255];
       if (state === 1 && numStates <= 2) return [37, 99, 235];
       const hue = ((state - 1) / Math.max(1, numStates - 2)) * 0.9;
@@ -512,23 +517,23 @@
     function drawCell(x, y) {
       if (!currentGrid || !canvasReady) return;
       const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
-      const px = renderOffsetX + x * renderCellSize;
-      const py = renderOffsetY + y * renderCellSize;
-      if (px + renderCellSize < 0 || px > displayW || py + renderCellSize < 0 || py > displayH) return;
+      const px = Math.round(renderOffsetX + x * renderCellSize);
+      const py = Math.round(renderOffsetY + y * renderCellSize);
+      const px2 = Math.round(renderOffsetX + (x + 1) * renderCellSize);
+      const py2 = Math.round(renderOffsetY + (y + 1) * renderCellSize);
+      const cw = px2 - px;
+      const ch = py2 - py;
+      if (px2 < 0 || px > displayW || py2 < 0 || py > displayH) return;
 
       const state = currentGrid[y][x];
-      if (state === 0) {
-        ctx.fillStyle = '#ffffff';
-      } else {
-        const color = currentPalette[state] || [255, 255, 255];
-        ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
-      }
-      ctx.fillRect(px, py, renderCellSize, renderCellSize);
+      const color = getStateColor(state, currentPalette.length || boardWidth * boardHeight);
+      ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+      ctx.fillRect(px, py, cw, ch);
 
       if (showGrid && renderCellSize > 2) {
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1 / zoomScale;
-        ctx.strokeRect(px, py, renderCellSize, renderCellSize);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, cw - 1, ch - 1);
       }
     }
 
@@ -538,35 +543,47 @@
       const w = currentGrid[0].length;
       setupCanvas(w, h);
 
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, displayW, displayH);
-
       const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
       const { startX, endX, startY, endY } = getVisibleRange(w, h);
 
+      // Pre-compute rounded row boundaries to avoid sub-pixel gaps
+      const rowYs = [];
+      for (let y = startY; y <= endY; y++) {
+        rowYs.push(Math.round(renderOffsetY + y * renderCellSize));
+      }
+      const colXs = [];
+      for (let x = startX; x <= endX; x++) {
+        colXs.push(Math.round(renderOffsetX + x * renderCellSize));
+      }
+
+      // Draw all cells using palette (including state 0)
       for (let y = startY; y < endY; y++) {
+        const py = rowYs[y - startY];
+        const ch = rowYs[y - startY + 1] - py;
         for (let x = startX; x < endX; x++) {
+          const px = colXs[x - startX];
+          const cw = colXs[x - startX + 1] - px;
           const state = currentGrid[y][x];
-          if (state === 0) continue;
-          const color = currentPalette[state] || [255, 255, 255];
+          const color = getStateColor(state, currentPalette.length || w * h);
           ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
-          ctx.fillRect(renderOffsetX + x * renderCellSize, renderOffsetY + y * renderCellSize, renderCellSize, renderCellSize);
+          ctx.fillRect(px, py, cw, ch);
         }
       }
 
+      // Draw grid lines if enabled
       if (showGrid && renderCellSize > 2) {
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1 / zoomScale;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
         ctx.beginPath();
         for (let x = startX; x <= endX; x++) {
-          const px = renderOffsetX + x * renderCellSize + 0.5 / zoomScale;
-          ctx.moveTo(px, renderOffsetY + startY * renderCellSize);
-          ctx.lineTo(px, renderOffsetY + endY * renderCellSize);
+          const px = colXs[x - startX] + 0.5;
+          ctx.moveTo(px, rowYs[0]);
+          ctx.lineTo(px, rowYs[rowYs.length - 1]);
         }
         for (let y = startY; y <= endY; y++) {
-          const py = renderOffsetY + y * renderCellSize + 0.5 / zoomScale;
-          ctx.moveTo(renderOffsetX + startX * renderCellSize, py);
-          ctx.lineTo(renderOffsetX + endX * renderCellSize, py);
+          const py = rowYs[y - startY] + 0.5;
+          ctx.moveTo(colXs[0], py);
+          ctx.lineTo(colXs[colXs.length - 1], py);
         }
         ctx.stroke();
       }
@@ -712,6 +729,16 @@
     function onStatus(msg) {
       if (msg.type === 'frame') {
         document.getElementById('sim-step-display').textContent = `Step: ${msg.step}`;
+        // Use server-provided palette if available (image seed original colors)
+        if (msg.palette && msg.palette.length > 0 && JSON.stringify(imagePalette) !== JSON.stringify(msg.palette)) {
+          imagePalette = msg.palette;
+          // Sync currentPalette so drawGrid/drawCell render correctly
+          currentPalette = [];
+          for (let i = 0; i < imagePalette.length; i++) {
+            currentPalette[i] = imagePalette[i];
+          }
+          createBrushButtons(imagePalette.length);
+        }
         if (msg.metrics) updateMetricsDisplay(msg.metrics);
       } else if (msg.type === 'metrics') {
         if (msg.metrics) updateMetricsDisplay(msg.metrics);
@@ -735,7 +762,20 @@
         document.getElementById('info-board-size').textContent = `${boardWidth}×${boardHeight}`;
         document.getElementById('info-states').textContent = session.num_states;
         document.getElementById('info-rule').textContent = session.rule_name;
-        buildMetricsPanel(session.metrics_enabled);
+        // Auto-add image_fidelity metric for image seeds
+        const seedConfig = session.seed_config || {};
+        let metrics = session.metrics_enabled || [];
+        if (seedConfig.type === 'image' && !metrics.includes('image_fidelity')) {
+          metrics = [...metrics, 'image_fidelity'];
+        }
+        buildMetricsPanel(metrics);
+
+        // Use image seed palette if available
+        if (seedConfig.type === 'image' && seedConfig.palette && seedConfig.palette.length > 0) {
+          imagePalette = seedConfig.palette;
+        } else {
+          imagePalette = null;
+        }
 
         currentPalette = [];
         for (let i = 0; i < session.num_states; i++) {
@@ -793,11 +833,20 @@
       if (sim) sim.snapshot();
     }
 
-    function exportImage() {
-      const link = document.createElement('a');
-      link.download = `ca-lab-session-${sessionId}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+    async function exportImage() {
+      try {
+        const resp = await fetch(`/api/sessions/${sessionId}/export.png`);
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `ca-lab-session-${sessionId}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
     }
 
     function paintCell(x, y, state) {

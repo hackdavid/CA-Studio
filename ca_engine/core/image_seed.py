@@ -76,12 +76,12 @@ def quantize_image_to_grid(
 
     # Quantization
     if mode == "grayscale":
-        grid, num_states = _quantize_grayscale(arr, max_states)
+        grid, num_states, palette = _quantize_grayscale(arr, max_states)
     else:
-        grid, num_states = _quantize_rgb(arr, max_states)
+        grid, num_states, palette = _quantize_rgb(arr, max_states)
 
-    # Build thumbnail
-    thumb = _build_thumbnail(grid, num_states)
+    # Build thumbnail using the original-color palette
+    thumb = _build_thumbnail(grid, num_states, palette)
 
     return {
         "grid": grid,
@@ -90,28 +90,40 @@ def quantize_image_to_grid(
         "num_states": num_states,
         "unique_colors": unique_colors,
         "thumbnail": thumb,
+        "palette": palette,
         "error": None,
     }
 
 
-def _quantize_grayscale(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int]:
-    """Quantize grayscale array to K states using uniform binning."""
+def _quantize_grayscale(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int, list[list[int]]]:
+    """Quantize grayscale array to K states using uniform binning.
+
+    Returns:
+        grid, num_states, palette where palette[state] = [R,G,B] average.
+    """
     # Uniform quantization: divide 0–255 into K bins
     bins = np.linspace(0, 256, max_states + 1, dtype=np.uint16)
-    # Digitize returns bin index (1-based), subtract 1 for 0-based
     grid = np.digitize(arr, bins[1:-1]).astype(np.uint8)
-    # Remap so the most common state is 1 (alive), background is 0 if appropriate
-    # But keep raw for now; states used are 0..max_states-1
     num_states = int(grid.max()) + 1
-    return grid, num_states
+
+    # Compute average grayscale value for each state → palette
+    palette: list[list[int]] = []
+    for s in range(num_states):
+        mask = grid == s
+        if np.any(mask):
+            avg = int(np.mean(arr[mask]))
+        else:
+            avg = 0 if s == 0 else 255
+        palette.append([avg, avg, avg])
+
+    return grid, num_states, palette
 
 
-def _quantize_rgb(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int]:
-    """Quantize RGB array to K states using k-means or uniform method.
+def _quantize_rgb(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int, list[list[int]]]:
+    """Quantize RGB array to K states using uniform binning.
 
-    For simplicity and speed we use a hybrid approach:
-    1. If unique colors <= max_states, map each unique color to a state directly.
-    2. Otherwise, use a simple uniform quantization in RGB space.
+    Returns:
+        grid, num_states, palette where palette[state] = [R,G,B] average.
     """
     h, w = arr.shape[:2]
     flat = arr.reshape(-1, 3)
@@ -121,14 +133,13 @@ def _quantize_rgb(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int]:
         # Direct mapping: each unique color → a state
         color_to_state = {tuple(c): i for i, c in enumerate(unique)}
         grid = np.array([color_to_state[tuple(p)] for p in flat], dtype=np.uint8).reshape(h, w)
-        return grid, len(unique)
+        palette = [[int(c) for c in color] for color in unique]
+        return grid, len(unique), palette
 
     # Otherwise: uniform quantization per channel
-    # Split 0–255 into K^(1/3) bins per channel approximately
     bins_per_channel = max(2, int(np.cbrt(max_states)))
     total_bins = bins_per_channel ** 3
     if total_bins > max_states:
-        # Reduce bins_per_channel until we fit
         while bins_per_channel ** 3 > max_states and bins_per_channel > 1:
             bins_per_channel -= 1
 
@@ -137,7 +148,6 @@ def _quantize_rgb(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int]:
     g_idx = np.digitize(arr[:, :, 1], bin_edges[1:-1])
     b_idx = np.digitize(arr[:, :, 2], bin_edges[1:-1])
 
-    # Combine into single state index
     grid = (r_idx * (bins_per_channel ** 2) + g_idx * bins_per_channel + b_idx).astype(np.uint8)
 
     # Remap to contiguous 0..N-1
@@ -145,26 +155,34 @@ def _quantize_rgb(arr: np.ndarray, max_states: int) -> tuple[np.ndarray, int]:
     state_map = {s: i for i, s in enumerate(unique_states)}
     grid = np.vectorize(state_map.get)(grid).astype(np.uint8)
     num_states = int(grid.max()) + 1
-    return grid, num_states
+
+    # Compute average RGB for each remapped state
+    palette: list[list[int]] = []
+    for s in range(num_states):
+        mask = grid == s
+        if np.any(mask):
+            avg_rgb = np.mean(arr[mask], axis=0).astype(int).tolist()
+        else:
+            avg_rgb = [0, 0, 0] if s == 0 else [255, 255, 255]
+        palette.append(avg_rgb)
+
+    return grid, num_states, palette
 
 
-def _build_thumbnail(grid: np.ndarray, num_states: int) -> str:
-    """Create a small base64 PNG thumbnail of the quantized grid."""
+def _build_thumbnail(grid: np.ndarray, num_states: int, palette: list[list[int]] | None = None) -> str:
+    """Create a small base64 PNG thumbnail using original-color palette."""
     h, w = grid.shape
-    # Scale up for visibility if small
     scale = max(1, min(4, 256 // max(h, w)))
     thumb = np.repeat(np.repeat(grid, scale, axis=0), scale, axis=1)
 
-    # Simple colormap: state 0 = white (background), others = distinct colors
     thumb_rgb = np.zeros((thumb.shape[0], thumb.shape[1], 3), dtype=np.uint8)
     for s in range(num_states):
-        if s == 0:
-            # Background state: light gray so grid structure is visible
+        if palette and s < len(palette):
+            r, g, b = palette[s]
+        elif s == 0:
             r, g, b = 240, 240, 240
         else:
-            # Spread hues across the color wheel, skip red-heavy region near 0
             hue = ((s - 1) / max(num_states - 1, 1)) * 360
-            # Shift so state 1 starts near cyan/blue rather than red
             hue = (hue + 180) % 360
             r, g, b = _hsv_to_rgb(hue, 0.75, 0.9)
         thumb_rgb[thumb == s] = [r, g, b]
