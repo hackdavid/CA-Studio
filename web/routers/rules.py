@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 from web.database import get_db
-from web.models import RuleCreate, RuleOut, RuleUpdate, ValidationResult
-from ca_engine.rules.yaml_loader import YAMLRuleLoader
-from ca_engine.rules.validator import RuleValidator
+from web.models import RuleBuilderPayload, RuleCreate, RuleOut, RuleUpdate, ValidationResult
+from web.services.rule_validation import build_yaml_from_metadata, validate_rule_name, validate_rule_yaml
 
 router = APIRouter(prefix="/api/rules", tags=["rules"])
 
@@ -22,6 +22,25 @@ def _normalize_rule(row: dict[str, Any]) -> dict[str, Any]:
     row["is_builtin"] = bool(row.get("is_builtin"))
     row["is_editable"] = bool(row.get("is_editable", True))
     return row
+
+
+async def _check_rule_name_unique(name: str, exclude_id: int | None = None) -> None:
+    db = await get_db()
+    try:
+        if exclude_id is not None:
+            cursor = await db.execute(
+                "SELECT id FROM rules WHERE LOWER(name) = LOWER(?) AND id != ?",
+                (name, exclude_id),
+            )
+        else:
+            cursor = await db.execute(
+                "SELECT id FROM rules WHERE LOWER(name) = LOWER(?)",
+                (name,),
+            )
+        if await cursor.fetchone():
+            raise HTTPException(status_code=400, detail=f"Rule name '{name}' already exists")
+    finally:
+        await db.close()
 
 
 @router.get("/", response_model=list[RuleOut])
@@ -58,6 +77,16 @@ async def get_rule(rule_id: int) -> dict[str, Any]:
 @router.post("/", response_model=RuleOut)
 async def create_rule(rule: RuleCreate) -> dict[str, Any]:
     """Create a new custom rule."""
+    name_errors = validate_rule_name(rule.name)
+    if name_errors:
+        raise HTTPException(status_code=400, detail=name_errors[0]["message"])
+
+    await _check_rule_name_unique(rule.name)
+
+    validation = validate_rule_yaml(rule.yaml_content, rule.name)
+    if not validation.is_valid:
+        raise HTTPException(status_code=400, detail=validation.errors[0].get("message", "Invalid rule"))
+
     db = await get_db()
     try:
         cursor = await db.execute(
@@ -68,10 +97,32 @@ async def create_rule(rule: RuleCreate) -> dict[str, Any]:
         await db.commit()
         rule_id = cursor.lastrowid
         return await get_rule(rule_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await db.close()
+
+
+@router.post("/from-builder", response_model=RuleOut)
+async def create_rule_from_builder(payload: RuleBuilderPayload) -> dict[str, Any]:
+    """Create a custom rule from the visual builder payload."""
+    yaml_content = build_yaml_from_metadata(
+        payload.name,
+        payload.description,
+        payload.category,
+        payload.states,
+        payload.neighbourhood,
+        payload.transitions,
+    )
+    rule = RuleCreate(
+        name=payload.name,
+        yaml_content=yaml_content,
+        description=payload.description,
+        category=payload.category,
+    )
+    return await create_rule(rule)
 
 
 @router.put("/{rule_id}", response_model=RuleOut)
@@ -79,17 +130,30 @@ async def update_rule(rule_id: int, rule: RuleUpdate) -> dict[str, Any]:
     """Update a custom rule. Built-in rules cannot be edited."""
     db = await get_db()
     try:
-        # Check if rule exists and is editable
-        cursor = await db.execute("SELECT is_editable FROM rules WHERE id = ?", (rule_id,))
+        cursor = await db.execute("SELECT is_editable, name FROM rules WHERE id = ?", (rule_id,))
         row = await cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Rule not found")
         if not row["is_editable"]:
             raise HTTPException(status_code=403, detail="Built-in rules cannot be edited")
 
-        # Build update query
+        new_name = rule.name if rule.name is not None else row["name"]
+        if rule.name is not None:
+            name_errors = validate_rule_name(rule.name)
+            if name_errors:
+                raise HTTPException(status_code=400, detail=name_errors[0]["message"])
+            await _check_rule_name_unique(rule.name, exclude_id=rule_id)
+
+        if rule.yaml_content is not None:
+            validation = validate_rule_yaml(rule.yaml_content, new_name)
+            if not validation.is_valid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=validation.errors[0].get("message", "Invalid rule"),
+                )
+
         fields = []
-        values = []
+        values: list[Any] = []
         if rule.name is not None:
             fields.append("name = ?")
             values.append(rule.name)
@@ -135,6 +199,14 @@ async def delete_rule(rule_id: int) -> dict[str, str]:
         if row["is_builtin"]:
             raise HTTPException(status_code=403, detail="Built-in rules cannot be deleted")
 
+        cursor = await db.execute("SELECT COUNT(*) as cnt FROM sessions WHERE rule_id = ?", (rule_id,))
+        count_row = await cursor.fetchone()
+        if count_row and count_row["cnt"] > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Rule is used by {count_row['cnt']} session(s). Delete those sessions first.",
+            )
+
         await db.execute("DELETE FROM rules WHERE id = ?", (rule_id,))
         await db.commit()
         return {"message": "Rule deleted"}
@@ -146,23 +218,10 @@ async def delete_rule(rule_id: int) -> dict[str, str]:
         await db.close()
 
 
-@router.post("/validate")
+@router.post("/validate", response_model=ValidationResult)
 async def validate_rule(rule: RuleCreate) -> ValidationResult:
     """Validate a rule YAML without saving."""
-    try:
-        loader = YAMLRuleLoader()
-        table = loader._parse(rule.yaml_content)
-
-        validator = RuleValidator(num_states=table.num_states)
-        # We need to extract rows from the table for validation
-        # For now, basic validation
-        return ValidationResult(is_valid=True, errors=[], warnings=[])
-    except Exception as e:
-        return ValidationResult(
-            is_valid=False,
-            errors=[{"message": str(e)}],
-            warnings=[],
-        )
+    return validate_rule_yaml(rule.yaml_content, rule.name)
 
 
 @router.get("/categories/list")

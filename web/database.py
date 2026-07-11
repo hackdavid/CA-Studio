@@ -74,12 +74,36 @@ async def init_db() -> None:
                 name TEXT UNIQUE NOT NULL,
                 formula TEXT NOT NULL,
                 description TEXT,
+                metric_type TEXT NOT NULL DEFAULT 'formula',
+                config_json TEXT DEFAULT '{}',
                 is_builtin BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                is_editable BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
         await db.commit()
+        await _migrate_schema(db)
+
+
+async def _migrate_schema(db: aiosqlite.Connection) -> None:
+    """Add columns introduced after initial schema."""
+    cursor = await db.execute("PRAGMA table_info(custom_metrics)")
+    metric_columns = {row[1] for row in await cursor.fetchall()}
+
+    if "metric_type" not in metric_columns:
+        await db.execute(
+            "ALTER TABLE custom_metrics ADD COLUMN metric_type TEXT NOT NULL DEFAULT 'formula'"
+        )
+    if "config_json" not in metric_columns:
+        await db.execute("ALTER TABLE custom_metrics ADD COLUMN config_json TEXT DEFAULT '{}'")
+    if "is_editable" not in metric_columns:
+        await db.execute("ALTER TABLE custom_metrics ADD COLUMN is_editable BOOLEAN DEFAULT 1")
+    if "updated_at" not in metric_columns:
+        await db.execute("ALTER TABLE custom_metrics ADD COLUMN updated_at TIMESTAMP")
+
+    await db.commit()
 
 
 async def get_db() -> aiosqlite.Connection:
@@ -132,7 +156,9 @@ async def seed_builtin_metrics() -> None:
             cursor = await db.execute("SELECT id FROM custom_metrics WHERE name = ?", (name,))
             if not await cursor.fetchone():
                 await db.execute(
-                    "INSERT INTO custom_metrics (name, formula, description, is_builtin) VALUES (?, ?, ?, 1)",
-                    (name, formula, desc),
+                    """INSERT INTO custom_metrics
+                       (name, formula, description, metric_type, config_json, is_builtin, is_editable)
+                       VALUES (?, ?, ?, ?, '{}', 1, 0)""",
+                    (name, formula, desc, name),
                 )
         await db.commit()

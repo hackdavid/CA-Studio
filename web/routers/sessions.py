@@ -109,8 +109,21 @@ async def get_session(session_id: int) -> dict[str, Any]:
 @router.post("/", response_model=SessionOut)
 async def create_session(session: SessionCreate) -> dict[str, Any]:
     """Create a new session."""
+    from web.services.metric_loader import validate_metric_names
+
     db = await get_db()
     try:
+        cursor = await db.execute("SELECT id FROM rules WHERE id = ?", (session.rule_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=400, detail=f"Rule id {session.rule_id} not found")
+
+        invalid_metrics = await validate_metric_names(session.metrics_enabled)
+        if invalid_metrics:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown metrics: {', '.join(invalid_metrics)}",
+            )
+
         cursor = await db.execute(
             """INSERT INTO sessions (name, rule_id, board_width, board_height, neighbourhood,
                 num_states, seed_config, metrics_enabled)

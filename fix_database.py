@@ -51,6 +51,28 @@ def fix_database():
             cursor.execute("ALTER TABLE custom_metrics ADD COLUMN is_builtin BOOLEAN DEFAULT 0")
             print("[OK] Added is_builtin column to custom_metrics")
 
+        if "metric_type" not in metric_columns:
+            print("Adding metric_type column to custom_metrics table...")
+            cursor.execute(
+                "ALTER TABLE custom_metrics ADD COLUMN metric_type TEXT NOT NULL DEFAULT 'formula'"
+            )
+            print("[OK] Added metric_type column")
+
+        if "config_json" not in metric_columns:
+            print("Adding config_json column to custom_metrics table...")
+            cursor.execute("ALTER TABLE custom_metrics ADD COLUMN config_json TEXT DEFAULT '{}'")
+            print("[OK] Added config_json column")
+
+        if "is_editable" not in metric_columns:
+            print("Adding is_editable column to custom_metrics table...")
+            cursor.execute("ALTER TABLE custom_metrics ADD COLUMN is_editable BOOLEAN DEFAULT 1")
+            print("[OK] Added is_editable column")
+
+        if "updated_at" not in metric_columns:
+            print("Adding updated_at column to custom_metrics table...")
+            cursor.execute("ALTER TABLE custom_metrics ADD COLUMN updated_at TIMESTAMP")
+            print("[OK] Added updated_at column")
+
     conn.commit()
     conn.close()
     print("\n[SUCCESS] Database schema fixed successfully!")

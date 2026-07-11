@@ -193,6 +193,23 @@
       transform: scale(1.02);
     }
 
+    .canvas-container.panning {
+      cursor: grab;
+    }
+    .canvas-container.panning:active {
+      cursor: grabbing;
+    }
+
+    .zoom-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .zoom-btn:hover {
+      transform: scale(1.03);
+    }
+    .zoom-btn:active {
+      transform: scale(0.98);
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -315,6 +332,34 @@
           </div>
         </div>
 
+        <!-- Zoom Controls -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+            Zoom
+          </h3>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-zoom-in" onclick="zoomIn()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                In
+              </button>
+              <button id="btn-zoom-out" onclick="zoomOut()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                Out
+              </button>
+            </div>
+            <div class="flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-500">Zoom</span>
+              <span id="zoom-display" class="font-bold text-primary-700">100%</span>
+            </div>
+            <button id="btn-zoom-reset" onclick="resetZoom()" class="control-btn w-full flex items-center justify-center gap-1 px-3 py-2 bg-white text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors">
+              Reset View
+            </button>
+            <p class="text-xs text-slate-500">Wheel to zoom. Right-drag or middle-drag to pan.</p>
+          </div>
+        </div>
+
       </div>
     </aside>
 
@@ -340,55 +385,9 @@
           <p class="text-xs text-slate-500">Real-time analysis</p>
         </div>
 
-        <!-- Metric Cards -->
-        <div class="space-y-3">
-          <!-- Density -->
-          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div class="flex items-start justify-between mb-2">
-              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-100 to-blue-100 flex items-center justify-center">
-                <svg class="w-4 h-4 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600 font-medium mb-1">Density</div>
-            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-density">0.450</div>
-            <div class="text-xs text-slate-500 mt-1">Fraction alive</div>
-          </div>
-
-          <!-- Entropy -->
-          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div class="flex items-start justify-between mb-2">
-              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-100 to-green-100 flex items-center justify-center">
-                <svg class="w-4 h-4 text-accent-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600 font-medium mb-1">Entropy</div>
-            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-entropy">0.892</div>
-            <div class="text-xs text-slate-500 mt-1">Shannon H</div>
-          </div>
-
-          <!-- Activity -->
-          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div class="flex items-start justify-between mb-2">
-              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                <svg class="w-4 h-4 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600 font-medium mb-1">Activity</div>
-            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-activity">12.3%</div>
-            <div class="text-xs text-slate-500 mt-1">Changed/step</div>
-          </div>
-
-          <!-- Stability -->
-          <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <div class="flex items-start justify-between mb-2">
-              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-                <svg class="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-              </div>
-            </div>
-            <div class="text-xs text-slate-600 font-medium mb-1">Stability</div>
-            <div class="text-xl font-bold text-slate-900 font-mono" id="metric-stability">87%</div>
-            <div class="text-xs text-slate-500 mt-1">Pattern stable</div>
-          </div>
+        <!-- Metric Cards (populated from session metrics_enabled) -->
+        <div id="metrics-panel" class="space-y-3">
+          <p class="text-xs text-slate-500 text-center py-2">Loading metrics…</p>
         </div>
 
         <!-- Info Section -->
@@ -429,10 +428,19 @@
     let currentGrid = null;
     let showGrid = true;
     let isPainting = false;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartOffsetX = 0;
+    let panStartOffsetY = 0;
     let boardWidth = 64;
     let boardHeight = 64;
-    let cellWidth = 10;
-    let cellHeight = 10;
+    let cellSize = 10;
+    let gridOffsetX = 0;
+    let gridOffsetY = 0;
+    let zoomScale = 1.0;
+    let panX = 0;
+    let panY = 0;
     let displayW = 0;
     let displayH = 0;
     let canvasReady = false;
@@ -443,7 +451,7 @@
 
     function getStateColor(state, numStates) {
       if (state === 0) return [255, 255, 255];
-      if (state === 1 && numStates <= 2) return [37, 99, 235]; // primary blue for binary CA
+      if (state === 1 && numStates <= 2) return [37, 99, 235];
       const hue = ((state - 1) / Math.max(1, numStates - 2)) * 0.9;
       return hsbToRgb(hue, 0.85, 0.95);
     }
@@ -462,35 +470,33 @@
       const container = document.getElementById('canvas-container');
       const displayW = Math.max(container.clientWidth, 1);
       const displayH = Math.max(container.clientHeight, 1);
-      return {
-        cellWidth: displayW / w,
-        cellHeight: displayH / h,
-        displayW,
-        displayH,
-      };
+      const cellSize = Math.min(displayW / w, displayH / h);
+      const offsetX = (displayW - cellSize * w) / 2;
+      const offsetY = (displayH - cellSize * h) / 2;
+      return { cellSize, displayW, displayH, offsetX, offsetY };
     }
 
-    function drawGridLines(w, h, displayW, displayH) {
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = 0; x <= w; x++) {
-        const px = x * cellWidth + 0.5;
-        ctx.moveTo(px, 0);
-        ctx.lineTo(px, displayH);
-      }
-      for (let y = 0; y <= h; y++) {
-        const py = y * cellHeight + 0.5;
-        ctx.moveTo(0, py);
-        ctx.lineTo(displayW, py);
-      }
-      ctx.stroke();
+    function getRenderParams() {
+      const renderCellSize = cellSize * zoomScale;
+      const renderOffsetX = gridOffsetX + panX;
+      const renderOffsetY = gridOffsetY + panY;
+      return { renderCellSize, renderOffsetX, renderOffsetY };
+    }
+
+    function getVisibleRange(w, h) {
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const startX = Math.max(0, Math.floor((0 - renderOffsetX) / renderCellSize));
+      const endX = Math.min(w, Math.ceil((displayW - renderOffsetX) / renderCellSize));
+      const startY = Math.max(0, Math.floor((0 - renderOffsetY) / renderCellSize));
+      const endY = Math.min(h, Math.ceil((displayH - renderOffsetY) / renderCellSize));
+      return { startX, endX, startY, endY };
     }
 
     function setupCanvas(w, h) {
       const dims = computeCellDimensions(w, h);
-      cellWidth = dims.cellWidth;
-      cellHeight = dims.cellHeight;
+      cellSize = dims.cellSize;
+      gridOffsetX = dims.offsetX;
+      gridOffsetY = dims.offsetY;
       displayW = dims.displayW;
       displayH = dims.displayH;
       const dpr = window.devicePixelRatio || 1;
@@ -500,43 +506,29 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       canvasReady = true;
 
-      const cellLabel = Math.round(cellWidth) === Math.round(cellHeight)
-        ? `${Math.round(cellWidth)}px`
-        : `${Math.round(cellWidth)}×${Math.round(cellHeight)}px`;
-      document.getElementById('info-cell-size').textContent = cellLabel;
+      document.getElementById('info-cell-size').textContent = `${Math.round(cellSize)}px`;
     }
 
     function drawCell(x, y) {
       if (!currentGrid || !canvasReady) return;
-      const state = currentGrid[y][x];
-      const px = x * cellWidth;
-      const py = y * cellHeight;
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const px = renderOffsetX + x * renderCellSize;
+      const py = renderOffsetY + y * renderCellSize;
+      if (px + renderCellSize < 0 || px > displayW || py + renderCellSize < 0 || py > displayH) return;
 
+      const state = currentGrid[y][x];
       if (state === 0) {
         ctx.fillStyle = '#ffffff';
       } else {
         const color = currentPalette[state] || [255, 255, 255];
         ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
       }
-      ctx.fillRect(px, py, cellWidth, cellHeight);
+      ctx.fillRect(px, py, renderCellSize, renderCellSize);
 
-      if (showGrid) {
+      if (showGrid && renderCellSize > 2) {
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + 0.5, py);
-        ctx.lineTo(px + 0.5, py + cellHeight);
-        ctx.moveTo(px, py + 0.5);
-        ctx.lineTo(px + cellWidth, py + 0.5);
-        if (x + 1 < boardWidth) {
-          ctx.moveTo(px + cellWidth + 0.5, py);
-          ctx.lineTo(px + cellWidth + 0.5, py + cellHeight);
-        }
-        if (y + 1 < boardHeight) {
-          ctx.moveTo(px, py + cellHeight + 0.5);
-          ctx.lineTo(px + cellWidth, py + cellHeight + 0.5);
-        }
-        ctx.stroke();
+        ctx.lineWidth = 1 / zoomScale;
+        ctx.strokeRect(px, py, renderCellSize, renderCellSize);
       }
     }
 
@@ -549,18 +541,34 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, displayW, displayH);
 
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const { startX, endX, startY, endY } = getVisibleRange(w, h);
+
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
           const state = currentGrid[y][x];
           if (state === 0) continue;
           const color = currentPalette[state] || [255, 255, 255];
           ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
-          ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+          ctx.fillRect(renderOffsetX + x * renderCellSize, renderOffsetY + y * renderCellSize, renderCellSize, renderCellSize);
         }
       }
 
-      if (showGrid) {
-        drawGridLines(w, h, displayW, displayH);
+      if (showGrid && renderCellSize > 2) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1 / zoomScale;
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x++) {
+          const px = renderOffsetX + x * renderCellSize + 0.5 / zoomScale;
+          ctx.moveTo(px, renderOffsetY + startY * renderCellSize);
+          ctx.lineTo(px, renderOffsetY + endY * renderCellSize);
+        }
+        for (let y = startY; y <= endY; y++) {
+          const py = renderOffsetY + y * renderCellSize + 0.5 / zoomScale;
+          ctx.moveTo(renderOffsetX + startX * renderCellSize, py);
+          ctx.lineTo(renderOffsetX + endX * renderCellSize, py);
+        }
+        ctx.stroke();
       }
     }
 
@@ -584,7 +592,6 @@
 
     function syncControlButtons() {
       const running = simRunState === 'running';
-      const paused = simRunState === 'paused' || simRunState === 'stopped';
       const canDraw = !running;
 
       const btnStart = document.getElementById('btn-start');
@@ -653,22 +660,35 @@
       });
     }
 
+    let enabledMetricNames = [];
+
+    function buildMetricsPanel(names) {
+      enabledMetricNames = names && names.length ? names : ['density', 'entropy'];
+      const panel = document.getElementById('metrics-panel');
+      if (!panel) return;
+      panel.innerHTML = enabledMetricNames.map(name => `
+        <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+          <div class="text-xs text-slate-600 font-medium mb-1">${name}</div>
+          <div class="text-xl font-bold text-slate-900 font-mono" id="metric-${name.replace(/[^a-z0-9_-]/gi, '_')}">—</div>
+        </div>
+      `).join('');
+    }
+
+    function updateMetricsDisplay(metrics) {
+      if (!metrics) return;
+      for (const [name, value] of Object.entries(metrics)) {
+        const elId = 'metric-' + name.replace(/[^a-z0-9_-]/gi, '_');
+        const el = document.getElementById(elId);
+        if (el) el.textContent = Number(value).toFixed(4);
+      }
+    }
+
     function onStatus(msg) {
       if (msg.type === 'frame') {
         document.getElementById('sim-step-display').textContent = `Step: ${msg.step}`;
-        if (msg.metrics) {
-          if (msg.metrics.density !== undefined) {
-            document.getElementById('metric-density').textContent = Number(msg.metrics.density).toFixed(3);
-          }
-          if (msg.metrics.entropy !== undefined) {
-            document.getElementById('metric-entropy').textContent = Number(msg.metrics.entropy).toFixed(3);
-          }
-          if (msg.metrics.live_cells !== undefined) {
-            const total = boardWidth * boardHeight;
-            const pct = total ? (msg.metrics.live_cells / total * 100) : 0;
-            document.getElementById('metric-activity').textContent = `${pct.toFixed(1)}%`;
-          }
-        }
+        if (msg.metrics) updateMetricsDisplay(msg.metrics);
+      } else if (msg.type === 'metrics') {
+        if (msg.metrics) updateMetricsDisplay(msg.metrics);
       } else if (msg.type === 'status') {
         updateStatus(msg.status);
       } else if (msg.type === 'error') {
@@ -689,6 +709,7 @@
         document.getElementById('info-board-size').textContent = `${boardWidth}×${boardHeight}`;
         document.getElementById('info-states').textContent = session.num_states;
         document.getElementById('info-rule').textContent = session.rule_name;
+        buildMetricsPanel(session.metrics_enabled);
 
         currentPalette = [];
         for (let i = 0; i < session.num_states; i++) {
@@ -766,19 +787,118 @@
       if (sim) sim.paint(x, y, state);
     }
 
+    function screenToGrid(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const x = Math.floor((clientX - rect.left - renderOffsetX) / renderCellSize);
+      const y = Math.floor((clientY - rect.top - renderOffsetY) / renderCellSize);
+      return { x, y };
+    }
+
     function handlePaintAt(clientX, clientY) {
       if (simRunState === 'running') return;
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((clientX - rect.left) * (boardWidth / rect.width));
-      const y = Math.floor((clientY - rect.top) * (boardHeight / rect.height));
+      const { x, y } = screenToGrid(clientX, clientY);
       paintCell(x, y, currentBrush);
     }
 
-    canvas.addEventListener('mousedown', (e) => { isPainting = true; handlePaintAt(e.clientX, e.clientY); });
-    canvas.addEventListener('mousemove', (e) => { if (isPainting) handlePaintAt(e.clientX, e.clientY); });
-    canvas.addEventListener('mouseup', () => { isPainting = false; });
-    canvas.addEventListener('mouseleave', () => { isPainting = false; });
-    window.addEventListener('resize', () => drawGrid());
+    function handleZoomAt(clientX, clientY, delta) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = clientX - rect.left;
+      const mouseY = clientY - rect.top;
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+
+      const cellX = (mouseX - renderOffsetX) / renderCellSize;
+      const cellY = (mouseY - renderOffsetY) / renderCellSize;
+
+      const factor = delta > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.5, Math.min(10, zoomScale * factor));
+
+      const newRenderCellSize = cellSize * newZoom;
+      const newRenderOffsetX = mouseX - cellX * newRenderCellSize;
+      const newRenderOffsetY = mouseY - cellY * newRenderCellSize;
+
+      zoomScale = newZoom;
+      panX = newRenderOffsetX - gridOffsetX;
+      panY = newRenderOffsetY - gridOffsetY;
+
+      updateZoomDisplay();
+      drawGrid();
+    }
+
+    function updateZoomDisplay() {
+      const el = document.getElementById('zoom-display');
+      if (el) el.textContent = `${Math.round(zoomScale * 100)}%`;
+    }
+
+    function resetZoom() {
+      zoomScale = 1.0;
+      panX = 0;
+      panY = 0;
+      updateZoomDisplay();
+      drawGrid();
+    }
+
+    function zoomIn() {
+      const rect = canvas.getBoundingClientRect();
+      handleZoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, -1);
+    }
+
+    function zoomOut() {
+      const rect = canvas.getBoundingClientRect();
+      handleZoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartOffsetX = panX;
+        panStartOffsetY = panY;
+        document.getElementById('canvas-container').classList.add('panning');
+        e.preventDefault();
+      } else if (e.button === 0) {
+        isPainting = true;
+        handlePaintAt(e.clientX, e.clientY);
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        panX = panStartOffsetX + (e.clientX - panStartX);
+        panY = panStartOffsetY + (e.clientY - panStartY);
+        drawGrid();
+      } else if (isPainting) {
+        handlePaintAt(e.clientX, e.clientY);
+      }
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      isPainting = false;
+      isPanning = false;
+      document.getElementById('canvas-container').classList.remove('panning');
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isPainting = false;
+      isPanning = false;
+      document.getElementById('canvas-container').classList.remove('panning');
+    });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      handleZoomAt(e.clientX, e.clientY, e.deltaY);
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      zoomScale = 1.0;
+      panX = 0;
+      panY = 0;
+      updateZoomDisplay();
+      drawGrid();
+    });
 
     loadSession();
   </script>

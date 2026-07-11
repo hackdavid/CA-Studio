@@ -85,8 +85,18 @@ class SnapshotOut(BaseModel):
 
 class MetricCreate(BaseModel):
     name: str
-    formula: str
+    metric_type: str = "formula"
+    formula: str = ""
+    config: dict[str, Any] = Field(default_factory=dict)
     description: str = ""
+
+
+class MetricUpdate(BaseModel):
+    name: str | None = None
+    metric_type: str | None = None
+    formula: str | None = None
+    config: dict[str, Any] | None = None
+    description: str | None = None
 
 
 class MetricOut(BaseModel):
@@ -94,11 +104,23 @@ class MetricOut(BaseModel):
     name: str
     formula: str
     description: str
+    metric_type: str = "formula"
+    config: dict[str, Any] = Field(default_factory=dict)
     is_builtin: bool
+    is_editable: bool = True
     created_at: str
 
     class Config:
         from_attributes = True
+
+
+class RuleBuilderPayload(BaseModel):
+    name: str
+    description: str = ""
+    category: str = "custom"
+    states: int = 2
+    neighbourhood: str = "moore8"
+    transitions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ValidationResult(BaseModel):

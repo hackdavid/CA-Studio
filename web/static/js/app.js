@@ -16,8 +16,12 @@ const api = {
             body: JSON.stringify(data),
         });
         if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || `HTTP ${res.status}`);
+            const err = await res.json().catch(() => ({}));
+            const detail = err.detail;
+            const message = typeof detail === 'string' ? detail
+                : Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail))
+                : detail || `HTTP ${res.status}`;
+            throw new Error(message);
         }
         return res.json();
     },
@@ -28,13 +32,25 @@ const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const detail = err.detail;
+            const message = typeof detail === 'string' ? detail
+                : Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail))
+                : detail || `HTTP ${res.status}`;
+            throw new Error(message);
+        }
         return res.json();
     },
 
     async delete(path) {
         const res = await fetch(API_BASE + path, { method: 'DELETE' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const detail = err.detail;
+            const message = typeof detail === 'string' ? detail : `HTTP ${res.status}`;
+            throw new Error(message);
+        }
         return res.json();
     }
 };

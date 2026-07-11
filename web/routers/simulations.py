@@ -17,10 +17,12 @@ from ca_engine.core.simulator import Simulator
 from ca_engine.core.board import Board
 from ca_engine.core.neighbourhood import Neighbourhood
 from ca_engine.core.palette import Palette
+from ca_engine.metrics.dynamic import DynamicMetricFactory
 from ca_engine.metrics.registry import MetricRegistry
 from ca_engine.rules.yaml_loader import YAMLRuleLoader
 from ca_engine.rules.legacy_loader import LegacyRuleLoader
 from web.routers.sessions import _build_initial_grid
+from web.services.metric_loader import fetch_all_custom_metrics
 
 router = APIRouter(prefix="/api/sim", tags=["simulations"])
 
@@ -48,7 +50,7 @@ async def _load_simulator(session_id: int) -> Simulator:
         # Load rule from YAML
         try:
             loader = YAMLRuleLoader()
-            table = loader._parse(row["yaml_content"])
+            table = loader.parse_content(row["yaml_content"])
         except Exception:
             # Fallback to legacy loader
             legacy = LegacyRuleLoader()
@@ -80,13 +82,15 @@ async def _load_simulator(session_id: int) -> Simulator:
         # Attach metrics
         metrics_enabled = json.loads(row["metrics_enabled"] or "[]")
         registry = MetricRegistry()
+        custom_metrics = await fetch_all_custom_metrics()
         for metric_name in metrics_enabled:
+            custom_row = custom_metrics.get(metric_name)
             try:
-                metric = registry.get(metric_name)
+                metric = DynamicMetricFactory.resolve_metric(metric_name, registry, custom_row)
                 metric.on_init((row["board_height"], row["board_width"]), row["num_states"])
                 sim.attach_metric(metric)
-            except Exception:
-                pass
+            except KeyError as e:
+                raise ValueError(str(e)) from e
 
         return sim
     finally:
@@ -221,9 +225,15 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
                 try:
                     sim.board.set(x, y, state)
                     await _save_session_state(session_id, sim)
+                    # Recalculate metrics and send lightweight update
+                    metrics = sim._collect_metrics()
+                    await websocket.send_json({
+                        "type": "metrics",
+                        "step": sim.step_num,
+                        "metrics": metrics,
+                    })
                 except Exception as paint_err:
                     await websocket.send_json({"type": "error", "message": str(paint_err)})
-                # Client renders locally; skip full frame to keep drawing responsive.
 
             elif action == "speed":
                 fps = max(1, min(60, msg.get("fps", 10)))

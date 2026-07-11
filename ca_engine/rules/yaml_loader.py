@@ -63,8 +63,20 @@ class YAMLRuleLoader:
             data = yaml.safe_load(f)
         return self._parse(data, path)
 
-    def _parse(self, data: dict[str, Any], path: Path | None = None) -> RuleTable:
-        """Parse YAML dict into RuleTable."""
+    def parse_content(self, yaml_content: str) -> RuleTable:
+        """Parse YAML string content into RuleTable."""
+        data = yaml.safe_load(yaml_content)
+        if not isinstance(data, dict):
+            raise ValueError("Rule YAML must be a mapping/object")
+        return self._parse(data)
+
+    def _parse(self, data: dict[str, Any] | str, path: Path | None = None) -> RuleTable:
+        """Parse YAML dict (or string content) into RuleTable."""
+        if isinstance(data, str):
+            parsed = yaml.safe_load(data)
+            if not isinstance(parsed, dict):
+                raise ValueError("Rule YAML must be a mapping/object")
+            data = parsed
         name = data.get("name", path.stem if path else "unknown")
         num_states = data.get("states", data.get("num_states", 101))
         transitions = data.get("transitions", data.get("rows", []))
