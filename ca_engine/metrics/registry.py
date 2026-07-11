@@ -5,8 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 from .base import Metric
+from .births import BirthsMetric
 from .density import DensityMetric
+from .deaths import DeathsMetric
 from .entropy import EntropyMetric
+from .info_gain import InfoGainMetric
+from .kolmogorov import KolmogorovMetric
+from .mb4 import NormalizedEntropyMetric
+from .ratio import RatioMetric
+from .state_count import StateCountMetric
+from .symmetry import SymmetryMetric
 from ..plugins.base import PluginRegistry, PluginMeta
 
 
@@ -22,6 +30,14 @@ class MetricRegistry:
         self.register("density", DensityMetric, "structure", "Fraction of non-zero cells")
         self.register("entropy", EntropyMetric, "structure", "Shannon entropy over all states")
         self.register("entropy_nonzero", lambda: EntropyMetric(exclude_zero=True), "structure", "Shannon entropy excluding state 0")
+        self.register("normalized_entropy", NormalizedEntropyMetric, "structure", "Entropy normalized to [0,1] by Hmax")
+        self.register("births", BirthsMetric, "dynamics", "Cells born (0 → non-zero) per step")
+        self.register("deaths", DeathsMetric, "dynamics", "Cells dying (non-zero → 0) per step")
+        self.register("state_count", StateCountMetric, "structure", "Number of distinct non-zero states present")
+        self.register("symmetry", SymmetryMetric, "structure", "6 symmetry measures (H/V/D/AD/180°/90°)")
+        self.register("info_gain", InfoGainMetric, "structure", "Mutual information with 4 neighbors")
+        self.register("kolmogorov", KolmogorovMetric, "complexity", "LZ78-based compressibility proxy")
+        self.register("ratio", RatioMetric, "structure", "Configurable ratio of selected states")
 
     def register(
         self,

@@ -52,6 +52,22 @@ const api = {
             throw new Error(message);
         }
         return res.json();
+    },
+
+    async postForm(path, formData) {
+        const res = await fetch(API_BASE + path, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const detail = err.detail;
+            const message = typeof detail === 'string' ? detail
+                : Array.isArray(detail) ? (detail[0]?.msg || JSON.stringify(detail))
+                : detail || `HTTP ${res.status}`;
+            throw new Error(message);
+        }
+        return res.json();
     }
 };
 

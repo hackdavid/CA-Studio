@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from web.database import init_db, seed_builtin_metrics, seed_builtin_rules
-from web.routers import metrics, rules, sessions, simulations
+from web.routers import images, metrics, rules, sessions, simulations
 
 static_dir = Path(__file__).resolve().parent / "web" / "static"
 
@@ -46,6 +46,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.include_router(rules.router)
 app.include_router(sessions.router)
 app.include_router(metrics.router)
+app.include_router(images.router)
 app.include_router(simulations.router)
 
 

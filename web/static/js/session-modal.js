@@ -13,6 +13,12 @@ let smAllMetrics = [];
 let smRuleDropdownOpen = false;
 let smMetricDropdownOpen = false;
 
+let smImageSeed = null; // { grid_data, width, height, num_states, unique_colors, thumbnail, mode, max_states }
+let smImageSeedMode = 'rgb';
+let smImageSeedMaxStates = 64;
+let smImageSeedAutoSize = true;
+let smImageFile = null; // Original File object for re-upload on mode change
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function smGetRuleStates(rule) {
   if (!rule?.yaml_content) return 2;
@@ -33,6 +39,11 @@ function openNewSessionModal() {
   smSelectedMetricNames = new Set(['density', 'entropy']);
   smRuleDropdownOpen = false;
   smMetricDropdownOpen = false;
+  smImageSeed = null;
+  smImageSeedMode = 'rgb';
+  smImageSeedMaxStates = 64;
+  smImageSeedAutoSize = true;
+  smImageFile = null;
 
   // Reset form fields
   const nameInput = document.getElementById('session-name-input');
@@ -43,6 +54,12 @@ function openNewSessionModal() {
   if (ruleSearch) ruleSearch.value = '';
   const metricSearch = document.getElementById('dropdown-metric-search');
   if (metricSearch) metricSearch.value = '';
+
+  // Reset seed UI
+  const seedSelect = document.getElementById('seed-select');
+  if (seedSelect) seedSelect.value = 'random_30';
+  renderImageSeedSection();
+  clearImagePreview();
 
   // Hide back button
   const backBtn = document.getElementById('session-modal-back');
@@ -362,6 +379,142 @@ function clearRulePreview() {
   if (empty) empty.classList.remove('hidden');
 }
 
+// ─── Image Seed ───────────────────────────────────────────────────────────
+function renderImageSeedSection() {
+  const seedKey = document.getElementById('seed-select')?.value;
+  const imageSection = document.getElementById('image-seed-section');
+  const classicSection = document.getElementById('classic-seed-section');
+  if (!imageSection || !classicSection) return;
+
+  if (seedKey === 'image') {
+    imageSection.classList.remove('hidden');
+    classicSection.classList.add('hidden');
+    updateImagePreview();
+  } else {
+    imageSection.classList.add('hidden');
+    classicSection.classList.remove('hidden');
+    clearImagePreview();
+  }
+}
+
+function onSeedTypeChange() {
+  renderImageSeedSection();
+}
+
+async function onImageDrop(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    toast('Please drop a valid image file', 'error');
+    return;
+  }
+  smImageFile = file;
+  await _reuploadImage();
+}
+
+async function _reuploadImage() {
+  if (!smImageFile) return;
+  const form = new FormData();
+  form.append('file', smImageFile);
+  form.append('mode', smImageSeedMode);
+  form.append('max_states', String(smImageSeedMaxStates));
+
+  try {
+    const result = await api.postForm('/api/images/upload', form);
+    if (!result.success) {
+      toast(result.error || 'Image quantization failed', 'error');
+      smImageSeed = null;
+      updateImagePreview();
+      return;
+    }
+    smImageSeed = result;
+    if (smImageSeedAutoSize) {
+      const wInput = document.getElementById('board-width-input');
+      const hInput = document.getElementById('board-height-input');
+      if (wInput) wInput.value = result.width;
+      if (hInput) hInput.value = result.height;
+    }
+    // Also auto-set num states to image num_states
+    const numInput = document.getElementById('num-states-input');
+    if (numInput) numInput.value = result.num_states;
+    updateImagePreview();
+  } catch (e) {
+    toast('Image upload failed: ' + e.message, 'error');
+    smImageSeed = null;
+    updateImagePreview();
+  }
+}
+
+function onImageModeChange(mode) {
+  smImageSeedMode = mode;
+  if (smImageFile) {
+    _reuploadImage();
+  }
+}
+
+function onMaxStatesChange(val) {
+  smImageSeedMaxStates = Math.max(2, Math.min(101, parseInt(val, 10) || 64));
+  if (smImageFile) {
+    _reuploadImage();
+  }
+}
+
+function onImageAutoSizeChange(checked) {
+  smImageSeedAutoSize = checked;
+}
+
+function updateImagePreview() {
+  const preview = document.getElementById('image-preview');
+  const stats = document.getElementById('image-stats');
+  if (!preview || !stats) return;
+
+  if (!smImageSeed) {
+    preview.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Drop an image to see preview</p>';
+    stats.textContent = '';
+    return;
+  }
+
+  preview.innerHTML = `
+    <div class="flex items-center justify-center mb-2">
+      <img src="data:image/png;base64,${smImageSeed.thumbnail}" alt="Quantized preview" class="rounded-lg max-h-32 border border-slate-200 shadow-sm">
+    </div>
+    <p class="text-xs text-slate-500 text-center">Quantized preview (${smImageSeed.mode})</p>
+  `;
+  stats.textContent = `${smImageSeed.width}×${smImageSeed.height} · ${smImageSeed.unique_colors} unique colors → ${smImageSeed.num_states} states`;
+}
+
+function clearImagePreview() {
+  const preview = document.getElementById('image-preview');
+  const stats = document.getElementById('image-stats');
+  if (preview) preview.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">Drop an image to see preview</p>';
+  if (stats) stats.textContent = '';
+}
+
+function setupImageDropZone() {
+  const zone = document.getElementById('image-drop-zone');
+  const fileInput = document.getElementById('image-file-input');
+  if (!zone || !fileInput) return;
+
+  zone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) onImageDrop(file);
+  });
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    zone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  zone.addEventListener('dragenter', () => zone.classList.add('border-primary-500', 'bg-primary-50'));
+  zone.addEventListener('dragleave', () => zone.classList.remove('border-primary-500', 'bg-primary-50'));
+  zone.addEventListener('drop', (e) => {
+    zone.classList.remove('border-primary-500', 'bg-primary-50');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) onImageDrop(file);
+  });
+}
+
 // ─── Create Session ────────────────────────────────────────────────────────
 async function createSession() {
   const name = document.getElementById('session-name-input').value.trim() || 'Untitled Session';
@@ -369,12 +522,29 @@ async function createSession() {
   const height = parseInt(document.getElementById('board-height-input').value, 10) || 64;
   const numStates = parseInt(document.getElementById('num-states-input').value, 10) || 2;
   const seedKey = document.getElementById('seed-select').value;
-  const seedMap = {
-    random_30: { type: 'random', density: 0.3, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
-    random_50: { type: 'random', density: 0.5, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
-    center: { type: 'single', state: 1, position: 'center' },
-    empty: { type: 'empty' },
-  };
+
+  let seedConfig;
+  if (seedKey === 'image') {
+    if (!smImageSeed) {
+      toast('Please upload an image for image seed', 'error');
+      return;
+    }
+    seedConfig = {
+      type: 'image',
+      image_data: smImageSeed.grid_data,
+      quantize_mode: smImageSeed.mode,
+      max_states: smImageSeed.num_states,
+    };
+  } else {
+    const seedMap = {
+      random_30: { type: 'random', density: 0.3, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
+      random_50: { type: 'random', density: 0.5, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
+      center: { type: 'single', state: 1, position: 'center' },
+      empty: { type: 'empty' },
+    };
+    seedConfig = seedMap[seedKey] || { type: 'random', density: 0.3, states: [1] };
+  }
+
   const metrics = Array.from(smSelectedMetricNames);
 
   if (!smSelectedRuleId) {
@@ -394,7 +564,7 @@ async function createSession() {
       board_height: height,
       neighbourhood: 'moore8',
       num_states: numStates,
-      seed_config: seedMap[seedKey] || { type: 'random', density: 0.3, states: [1] },
+      seed_config: seedConfig,
       metrics_enabled: metrics.length ? metrics : ['density', 'entropy'],
     });
     closeNewSessionModal();
@@ -440,14 +610,16 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ─── Num-states manual-edit tracking ─────────────────────────────────────────
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('num-states-input')?.addEventListener('input', () => {
-      smStatesManuallyEdited = true;
-    });
-  });
-} else {
+function setupNumStatesTracking() {
   document.getElementById('num-states-input')?.addEventListener('input', () => {
     smStatesManuallyEdited = true;
   });
+  document.getElementById('seed-select')?.addEventListener('change', onSeedTypeChange);
+  setupImageDropZone();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupNumStatesTracking);
+} else {
+  setupNumStatesTracking();
 }

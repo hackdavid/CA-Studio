@@ -37,8 +37,9 @@ class EntropyMetric(Metric):
         if total == 0:
             return 0.0
 
-        # Count each state
-        counts = np.bincount(grid.ravel(), minlength=self._num_states)
+        # Count each state — use actual max to avoid out-of-bounds
+        actual_max = int(grid.max()) + 1
+        counts = np.bincount(grid.ravel(), minlength=max(self._num_states, actual_max))
 
         if self._exclude_zero:
             counts = counts[1:]

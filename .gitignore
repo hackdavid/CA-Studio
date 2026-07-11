@@ -72,6 +72,15 @@ ca_lab.db-*
 debug-*.log
 screenshots/
 
+# Playwright / test screenshots & scripts
+sim_*.png
+modal_*.png
+test_*.png
+test_*.py
+
+# Screenshot / debug scripts
+screenshot_*.py
+
 # OS
 .DS_Store
 .DS_Store?

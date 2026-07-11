@@ -105,7 +105,12 @@ class Simulator:
             if hasattr(metric, "on_step"):
                 metric.on_step(self.board.data, self.step_num)
             if hasattr(metric, "values"):
-                result.update(metric.values)
+                vals = metric.values
+                # Flatten only when values has a single key matching metric name
+                if len(vals) == 1 and metric.name in vals:
+                    result[metric.name] = vals[metric.name]
+                else:
+                    result[metric.name] = vals
             elif hasattr(metric, "name") and hasattr(metric, "value"):
                 result[metric.name] = metric.value
         return result

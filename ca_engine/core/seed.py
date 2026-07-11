@@ -15,6 +15,7 @@ class SeedType(str, Enum):
     RANDOM = "random"
     FILE = "file"
     PATTERN = "pattern"
+    IMAGE = "image"
 
 
 class SeedConfig(BaseModel):
@@ -29,6 +30,9 @@ class SeedConfig(BaseModel):
     states: list[int] | None = None  # For RANDOM: which states to use
     file_path: str | None = None  # For FILE
     pattern: list[list[int]] | None = None  # For PATTERN
+    image_data: str | None = None  # For IMAGE: base64-encoded quantized grid
+    quantize_mode: str = "rgb"  # For IMAGE: "rgb" or "grayscale"
+    max_states: int = 64  # For IMAGE: quantization target
 
     def apply(self, board: Any, rng: Any) -> None:
         """Apply this seed configuration to a board.
@@ -38,6 +42,7 @@ class SeedConfig(BaseModel):
             rng: A numpy.random.Generator.
         """
         from .board import Board
+        from .image_seed import base64_to_grid
 
         if not isinstance(board, Board):
             raise TypeError("Expected Board instance")
@@ -66,6 +71,27 @@ class SeedConfig(BaseModel):
         elif self.type == SeedType.PATTERN:
             if self.pattern:
                 _apply_pattern(board, self.pattern)
+
+        elif self.type == SeedType.IMAGE:
+            if not self.image_data:
+                raise ValueError("IMAGE seed requires image_data")
+            grid = base64_to_grid(self.image_data, board.width, board.height)
+            # Center the image grid on the board if sizes differ
+            gh, gw = grid.shape
+            bh, bw = board.height, board.width
+            if gh == bh and gw == bw:
+                board._data[:] = grid
+            else:
+                # Place image at center of board, padding with 0
+                y_off = (bh - gh) // 2
+                x_off = (bw - gw) // 2
+                y_start = max(0, y_off)
+                x_start = max(0, x_off)
+                y_end = min(bh, y_off + gh)
+                x_end = min(bw, x_off + gw)
+                gy_start = max(0, -y_off)
+                gx_start = max(0, -x_off)
+                board._data[y_start:y_end, x_start:x_end] = grid[gy_start:gy_start + (y_end - y_start), gx_start:gx_start + (x_end - x_start)]
 
 
 def _apply_pattern(board: Any, pattern: list[list[int]]) -> None:

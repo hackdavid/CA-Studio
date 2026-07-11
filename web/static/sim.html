@@ -667,9 +667,10 @@
       const panel = document.getElementById('metrics-panel');
       if (!panel) return;
       panel.innerHTML = enabledMetricNames.map(name => `
-        <div class="metric-card bg-slate-50 rounded-xl p-4 border border-slate-200">
+        <div class="metric-card bg-slate-50 rounded-xl p-3 border border-slate-200">
           <div class="text-xs text-slate-600 font-medium mb-1">${name}</div>
-          <div class="text-xl font-bold text-slate-900 font-mono" id="metric-${name.replace(/[^a-z0-9_-]/gi, '_')}">—</div>
+          <div class="font-bold text-slate-900 font-mono" id="metric-${name.replace(/[^a-z0-9_-]/gi, '_')}">—</div>
+          <div class="text-[10px] text-slate-500 mt-1 leading-tight font-mono" id="metric-sub-${name.replace(/[^a-z0-9_-]/gi, '_')}"></div>
         </div>
       `).join('');
     }
@@ -677,9 +678,34 @@
     function updateMetricsDisplay(metrics) {
       if (!metrics) return;
       for (const [name, value] of Object.entries(metrics)) {
-        const elId = 'metric-' + name.replace(/[^a-z0-9_-]/gi, '_');
-        const el = document.getElementById(elId);
-        if (el) el.textContent = Number(value).toFixed(4);
+        const safeName = name.replace(/[^a-z0-9_-]/gi, '_');
+        const el = document.getElementById('metric-' + safeName);
+        const subEl = document.getElementById('metric-sub-' + safeName);
+        if (!el) continue;
+
+        if (typeof value === 'number') {
+          el.textContent = Number(value).toFixed(4);
+          if (subEl) subEl.textContent = '';
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Nested metric dict — show primary scalar if available, else flatten
+          const scalarEntries = Object.entries(value).filter(([k, v]) => typeof v === 'number');
+          if (scalarEntries.length === 1) {
+            el.textContent = Number(scalarEntries[0][1]).toFixed(4);
+            if (subEl) subEl.textContent = '';
+          } else if (scalarEntries.length > 1) {
+            // Show first value large, rest as sub-text
+            el.textContent = Number(scalarEntries[0][1]).toFixed(4);
+            if (subEl) {
+              subEl.textContent = scalarEntries.slice(1).map(([k, v]) => `${k}: ${Number(v).toFixed(3)}`).join(' | ');
+            }
+          } else {
+            el.textContent = '—';
+            if (subEl) subEl.textContent = '';
+          }
+        } else {
+          el.textContent = String(value);
+          if (subEl) subEl.textContent = '';
+        }
       }
     }
 
