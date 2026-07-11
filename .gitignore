@@ -70,6 +70,7 @@ ca_lab.db-*
 # Logs & debug
 *.log
 debug-*.log
+screenshots/
 
 # OS
 .DS_Store

@@ -67,6 +67,18 @@ async def dashboard_page() -> FileResponse:
     return FileResponse(static_dir / "dashboard.html")
 
 
+@app.get("/rules")
+async def rules_page() -> FileResponse:
+    """Rule Library page."""
+    return FileResponse(static_dir / "rules.html")
+
+
+@app.get("/metrics")
+async def metrics_page() -> FileResponse:
+    """Metrics Library page."""
+    return FileResponse(static_dir / "metrics.html")
+
+
 @app.get("/simulation")
 async def simulation_page() -> FileResponse:
     """Real-time CA simulation view."""
@@ -113,6 +125,8 @@ async def api_info() -> dict[str, Any]:
                 "/": "Home (landing page)",
                 "/landing": "Redirect to /",
                 "/dashboard": "Dashboard",
+                "/rules": "Rule Library",
+                "/metrics": "Metrics Library",
                 "/simulation": "Simulation",
                 "/simulation/{id}": "Simulation with session",
             },
