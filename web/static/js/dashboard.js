@@ -7,9 +7,6 @@
 let allRules = [];
 let allSessions = [];
 let allMetrics = [];
-let selectedRuleId = null;
-let selectedMetricNames = new Set(['density', 'entropy']);
-let statesManuallyEdited = false;
 let sidebarOpen = false;
 let activeSessionPollInterval = null;
 
@@ -41,15 +38,6 @@ function getRuleStates(rule) {
   const numStatesMatch = rule.yaml_content.match(/^num_states:\s*(\d+)/m);
   if (numStatesMatch) return parseInt(numStatesMatch[1], 10);
   return 2;
-}
-
-function updateNumStatesFromRule() {
-  if (statesManuallyEdited) return;
-  const rule = allRules.find(r => r.id === selectedRuleId);
-  if (!rule) return;
-  const states = getRuleStates(rule);
-  const input = document.getElementById('num-states-input');
-  if (input) input.value = states;
 }
 
 // ─── Sidebar / Responsive ──────────────────────────────────────────────────
@@ -251,14 +239,7 @@ function renderFeaturedRules() {
 }
 
 function useRule(ruleId) {
-  selectedRuleId = ruleId;
-  statesManuallyEdited = false;
-  openNewSessionModal();
-  // Pre-select the rule in the modal
-  setTimeout(() => {
-    selectRule(ruleId);
-    document.getElementById('session-name-input')?.focus();
-  }, 50);
+  openNewSessionModalWithRule(ruleId);
 }
 
 // ─── Recent Experiments Table ────────────────────────────────────────────────
@@ -334,114 +315,6 @@ function renderSidebarNav() {
   }
 }
 
-// ─── Modal Functions (Preserved from original) ─────────────────────────────
-function openNewSessionModal() {
-  const search = document.getElementById('modal-rule-search');
-  if (search) search.value = '';
-  const metricSearch = document.getElementById('modal-metric-search');
-  if (metricSearch) metricSearch.value = '';
-  statesManuallyEdited = false;
-  renderModalRules();
-  renderModalMetrics();
-  document.getElementById('newSessionModal')?.classList.remove('hidden');
-  document.getElementById('session-name-input')?.focus();
-}
-
-function closeNewSessionModal() {
-  document.getElementById('newSessionModal')?.classList.add('hidden');
-}
-
-function filterModalRules(query) {
-  renderModalRules(query);
-}
-
-function selectRule(ruleId) {
-  selectedRuleId = ruleId;
-  document.querySelectorAll('#modal-rule-list .rule-option').forEach(el => {
-    const active = parseInt(el.dataset.ruleId, 10) === ruleId;
-    el.className = active
-      ? 'rule-option px-3 py-2 bg-primary-50 border border-primary-400 ring-1 ring-primary-300 rounded-lg cursor-pointer transition-colors'
-      : 'rule-option px-3 py-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors';
-  });
-  updateNumStatesFromRule();
-}
-
-function renderModalRules(query = '') {
-  const container = document.getElementById('modal-rule-list');
-  if (!container) return;
-  const q = query.trim().toLowerCase();
-  const filtered = allRules.filter(r => r.name.toLowerCase().includes(q));
-
-  if (!allRules.length) {
-    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-3">No rules available</p>';
-    return;
-  }
-  if (!filtered.length) {
-    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-3">No matching rules</p>';
-    return;
-  }
-  if (!selectedRuleId || !filtered.some(r => r.id === selectedRuleId)) {
-    selectedRuleId = filtered[0].id;
-  }
-  container.innerHTML = filtered.map(rule => `
-    <div class="rule-option px-3 py-2 border rounded-lg cursor-pointer transition-colors ${rule.id === selectedRuleId ? 'bg-primary-50 border-primary-400 ring-1 ring-primary-300' : 'bg-white border-slate-200 hover:bg-slate-50'}"
-         data-rule-id="${rule.id}" onclick="selectRule(${rule.id})">
-      <div class="font-semibold text-sm text-slate-900 leading-tight">${rule.name}</div>
-      <div class="text-xs text-slate-500 mt-0.5">${rule.is_builtin ? 'Built-in' : 'Custom'} · ${rule.category || 'experimental'}</div>
-    </div>
-  `).join('');
-  updateNumStatesFromRule();
-}
-
-function toggleMetric(name, checked) {
-  if (checked) selectedMetricNames.add(name);
-  else selectedMetricNames.delete(name);
-}
-
-function filterModalMetrics(query = '') {
-  renderModalMetrics(query);
-}
-
-function renderModalMetrics(query = '') {
-  const container = document.getElementById('modal-metrics-list');
-  if (!container) return;
-  const q = query.trim().toLowerCase();
-  const filtered = allMetrics.filter(m =>
-    m.name.toLowerCase().includes(q) ||
-    (m.description || '').toLowerCase().includes(q)
-  );
-
-  if (!allMetrics.length) {
-    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-3">No metrics available</p>';
-    return;
-  }
-  if (!filtered.length) {
-    container.innerHTML = '<p class="text-sm text-slate-500 text-center py-3">No matching metrics</p>';
-    return;
-  }
-
-  container.innerHTML = filtered.map(metric => {
-    const checked = selectedMetricNames.has(metric.name);
-    const badge = metric.is_builtin
-      ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-primary-100 text-primary-700 font-medium">Built-in</span>'
-      : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-100 text-accent-700 font-medium">Custom</span>';
-    return `
-      <label class="metric-option flex items-start gap-2.5 px-3 py-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-primary-300 transition-colors">
-        <input type="checkbox" class="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary-600"
-          data-metric-name="${metric.name}" ${checked ? 'checked' : ''}
-          onchange="toggleMetric('${metric.name}', this.checked)">
-        <span class="min-w-0 flex-1">
-          <span class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-slate-900 leading-tight">${metric.name}</span>
-            ${badge}
-          </span>
-          <span class="block text-xs text-slate-500 mt-0.5">${metric.description || 'CA metric'}</span>
-        </span>
-      </label>
-    `;
-  }).join('');
-}
-
 // ─── Data Loading ────────────────────────────────────────────────────────────
 async function loadDashboard() {
   try {
@@ -468,54 +341,8 @@ async function loadDashboard() {
     if (dateEl) {
       dateEl.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
-
-    if (allRules.length) selectedRuleId = allRules[0].id;
-    renderModalRules();
-    renderModalMetrics();
   } catch (e) {
     toast('Failed to load dashboard: ' + e.message, 'error');
-  }
-}
-
-// ─── Session Actions ───────────────────────────────────────────────────────
-async function createSession() {
-  const name = document.getElementById('session-name-input').value.trim() || 'Untitled Session';
-  const width = parseInt(document.getElementById('board-width-input').value, 10) || 64;
-  const height = parseInt(document.getElementById('board-height-input').value, 10) || 64;
-  const numStates = parseInt(document.getElementById('num-states-input').value, 10) || 2;
-  const seedKey = document.getElementById('seed-select').value;
-  const seedMap = {
-    random_30: { type: 'random', density: 0.3, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
-    random_50: { type: 'random', density: 0.5, states: Array.from({ length: numStates - 1 }, (_, i) => i + 1) },
-    center: { type: 'single', state: 1, position: 'center' },
-    empty: { type: 'empty' },
-  };
-  const metrics = Array.from(selectedMetricNames);
-
-  if (!selectedRuleId) {
-    toast('Please select a rule', 'error');
-    return;
-  }
-  if (numStates < 2 || numStates > 101) {
-    toast('Number of states must be between 2 and 101', 'error');
-    return;
-  }
-
-  try {
-    const session = await api.post('/api/sessions/', {
-      name,
-      rule_id: selectedRuleId,
-      board_width: width,
-      board_height: height,
-      neighbourhood: 'moore8',
-      num_states: numStates,
-      seed_config: seedMap[seedKey] || { type: 'random', density: 0.3, states: [1] },
-      metrics_enabled: metrics.length ? metrics : ['density', 'entropy'],
-    });
-    closeNewSessionModal();
-    window.location.href = `/simulation/${session.id}`;
-  } catch (e) {
-    toast('Failed to create session: ' + e.message, 'error');
   }
 }
 
@@ -560,10 +387,6 @@ async function resumeSession(id) {
 
 // ─── Initialization ──────────────────────────────────────────────────────────
 function initDashboard() {
-  document.getElementById('num-states-input')?.addEventListener('input', () => {
-    statesManuallyEdited = true;
-  });
-
   // Close sidebar when clicking overlay
   document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
 
