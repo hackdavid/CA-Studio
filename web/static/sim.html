@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulation — CA Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Crimson Pro', 'serif'],
+            sans: ['Atkinson Hyperlegible', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            primary: {
+              50: '#f0f5f9', 100: '#d9e5ef', 200: '#b8cfe0', 300: '#8bb1cd',
+              400: '#5c8fb7', 500: '#3d73a2', 600: '#2f5c87', 700: '#284b6e',
+              800: '#1e3a5f', 900: '#1b3252',
+            },
+            accent: {
+              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+              400: '#4ade80', 500: '#22c55e', 600: '#059669', 700: '#047857',
+            }
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Canvas fills the entire center panel */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .canvas-container canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+
+    /* Controls */
+    .control-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .control-btn:hover:not(:disabled) {
+      transform: scale(1.03);
+    }
+    .control-btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .control-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .brush-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.625rem;
+      border: 2px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+    .brush-btn:hover:not(:disabled) {
+      border-color: #8bb1cd;
+      background: #f8fafc;
+    }
+    .brush-btn.active {
+      border-color: #2f5c87;
+      background: #f0f5f9;
+      box-shadow: 0 0 0 1px #2f5c87;
+    }
+    .brush-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .brush-swatch {
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 0.375rem;
+      border: 1px solid rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    .brush-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+      gap: 0.375rem;
+    }
+    .brush-swatch-btn {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.5rem;
+      border: 2px solid #e2e8f0;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      padding: 0;
+    }
+    .brush-swatch-btn:hover:not(:disabled) {
+      border-color: #8bb1cd;
+      transform: scale(1.05);
+    }
+    .brush-swatch-btn.active {
+      border-color: #2f5c87;
+      box-shadow: 0 0 0 2px rgba(47, 92, 135, 0.25);
+    }
+    .brush-swatch-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Metrics card */
+    .metric-card {
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+    .metric-card:hover {
+      background: rgba(248, 250, 252, 0.8);
+      border-color: #8bb1cd;
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      border-radius: 12px;
+      background: #cbd5e1;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .toggle-switch.active {
+      background: #2f5c87;
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    /* Status indicator */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-ready { background: #f1f5f9; color: #475569; }
+    .status-running { background: #dcfce7; color: #166534; }
+    .status-paused { background: #fef9c3; color: #854d0e; }
+
+    /* Hover effects */
+    .hover-scale {
+      transition: transform 0.2s ease;
+    }
+    .hover-scale:hover {
+      transform: scale(1.02);
+    }
+
+    .canvas-container.panning {
+      cursor: grab;
+    }
+    .canvas-container.panning:active {
+      cursor: grabbing;
+    }
+
+    .zoom-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .zoom-btn:hover {
+      transform: scale(1.03);
+    }
+    .zoom-btn:active {
+      transform: scale(0.98);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans bg-slate-50 text-slate-900 h-screen overflow-hidden flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <nav class="flex-shrink-0 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 shadow-sm">
+    <div class="flex items-center gap-4">
+      <a href="/landing" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-700 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">CA</div>
+        <div>
+          <div class="font-serif font-semibold text-base text-primary-900">Simulation</div>
+        </div>
+      </a>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <span id="sim-status-badge" class="status-indicator status-ready">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+        Ready
+      </span>
+      <span id="sim-step-display" class="text-xs font-mono text-slate-600">Step: 0</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="saveSimulation()" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+        Save
+      </button>
+      <div class="relative">
+        <button id="export-dropdown-trigger" onclick="toggleExportDropdown()" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          Export
+          <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </button>
+        <div id="export-dropdown-panel" class="hidden absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div class="px-3 py-2 border-b border-slate-100 bg-slate-50">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Instant</span>
+          </div>
+          <button onclick="exportImage(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Save Current State (PNG)
+          </button>
+          <button onclick="exportImageWithMetrics(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            PNG with Metrics Overlay
+          </button>
+          <button onclick="exportMetricsCsv(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export Metrics CSV
+          </button>
+          <div class="px-3 py-2 border-y border-slate-100 bg-slate-50">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Render &amp; Download</span>
+          </div>
+          <button onclick="openRenderDialog(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            Render GIF / MP4 / WebM…
+          </button>
+          <button onclick="exportSessionZip(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+            Save Session ZIP
+          </button>
+          <div class="px-3 py-2 border-y border-slate-100 bg-slate-50">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">CLI Handoff</span>
+          </div>
+          <button onclick="exportCliState(); closeExportDropdown();" class="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-800 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Export for CLI Resume
+          </button>
+        </div>
+      </div>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <a href="/dashboard" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-300 rounded-lg hover:bg-primary-100 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Dashboard
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content: 10% - 80% - 10% Layout -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Left Panel: 10% - Controls & Options -->
+    <aside class="flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
+      <div class="p-4 space-y-5">
+
+        <!-- Playback Controls -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Controls
+          </h3>
+          <div class="space-y-2">
+            <button id="btn-start" onclick="startSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary-600 to-blue-600 text-white font-bold rounded-xl hover:from-primary-700 hover:to-blue-700 transition-all shadow-md shadow-primary-500/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Start
+            </button>
+            <button id="btn-pause" onclick="pauseSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 font-semibold rounded-lg border-2 border-slate-300 hover:border-primary-400 hover:text-primary-700 transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              Pause
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-step" onclick="stepOnce()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                Step
+              </button>
+              <button id="btn-reset" onclick="resetSim()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Speed Control -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Speed
+          </h3>
+          <div class="space-y-3">
+            <input type="range" min="10" max="500" value="100" step="10" id="speed-slider" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="updateSpeed(this.value)">
+            <div class="flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-500">Fast</span>
+              <span id="speed-display" class="font-bold text-primary-700">100ms</span>
+              <span class="text-slate-500">Slow</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- State brush picker -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+            Brush (K states)
+          </h3>
+          <p id="draw-hint" class="text-xs text-slate-500 mb-2">Select a color, then paint on the grid.</p>
+          <div id="brush-container" class="brush-grid"></div>
+        </div>
+
+        <!-- View Options -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            View
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-700 font-medium">Grid Lines</span>
+              <div class="toggle-switch active" onclick="toggleGrid(this)"></div>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-700 font-medium">Cell Numbers</span>
+              <div class="toggle-switch" onclick="toggleCellNumbers(this)"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zoom Controls -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+            Zoom
+          </h3>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btn-zoom-in" onclick="zoomIn()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                In
+              </button>
+              <button id="btn-zoom-out" onclick="zoomOut()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                Out
+              </button>
+            </div>
+            <div class="flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-500">Zoom</span>
+              <span id="zoom-display" class="font-bold text-primary-700">100%</span>
+            </div>
+            <button id="btn-zoom-reset" onclick="resetZoom()" class="control-btn w-full flex items-center justify-center gap-1 px-3 py-2 bg-white text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors">
+              Reset View
+            </button>
+            <p class="text-xs text-slate-500">Wheel to zoom. Right-drag or middle-drag to pan.</p>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Center Panel: full-width canvas -->
+    <main class="flex-1 flex flex-col overflow-hidden min-w-0 bg-white">
+      <div class="flex-1 min-h-0">
+        <div class="canvas-container h-full w-full" id="canvas-container">
+          <canvas id="main-canvas"></canvas>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel: Metrics -->
+    <aside class="flex-shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
+      <div class="p-4 space-y-4">
+
+        <!-- Metrics Header -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            Metrics
+          </h3>
+          <p class="text-xs text-slate-500">Real-time analysis</p>
+        </div>
+
+        <!-- Metric Cards (populated from session metrics_enabled) -->
+        <div id="metrics-panel" class="space-y-3">
+          <p class="text-xs text-slate-500 text-center py-2">Loading metrics…</p>
+        </div>
+
+        <!-- Info Section -->
+        <div class="pt-4 border-t border-slate-200">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Session Info</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-600">Board Size</span>
+              <span class="font-mono font-bold text-slate-900" id="info-board-size">64×64</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Cell Size</span>
+              <span class="font-mono font-bold text-slate-900" id="info-cell-size">12px</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">States (K)</span>
+              <span class="font-mono font-bold text-slate-900" id="info-states">2</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Rule</span>
+              <span class="font-mono font-bold text-primary-700" id="info-rule">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+  <script>
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const sessionId = pathParts[0] === 'simulation' && pathParts[1] ? pathParts[1] : null;
+
+    let sim = null;
+    let currentBrush = 1;
+    let currentPalette = [];
+    let currentGrid = null;
+    let showGrid = true;
+    let isPainting = false;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartOffsetX = 0;
+    let panStartOffsetY = 0;
+    let boardWidth = 64;
+    let boardHeight = 64;
+    let cellSize = 10;
+    let gridOffsetX = 0;
+    let gridOffsetY = 0;
+    let zoomScale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let displayW = 0;
+    let displayH = 0;
+    let canvasReady = false;
+
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    let simRunState = 'stopped';
+
+    let imagePalette = null;
+
+    function getStateColor(state, numStates) {
+      if (state === 0) return [255, 255, 255];
+      if (imagePalette && state < imagePalette.length) {
+        return imagePalette[state];
+      }
+      if (state === 1 && numStates <= 2) return [37, 99, 235];
+      const hue = ((state - 1) / Math.max(1, numStates - 2)) * 0.9;
+      return hsbToRgb(hue, 0.85, 0.95);
+    }
+
+    function hsbToRgb(h, s, b) {
+      const i = Math.floor(h * 6);
+      const f = h * 6 - i;
+      const p = b * (1 - s);
+      const q = b * (1 - f * s);
+      const t = b * (1 - (1 - f) * s);
+      const rgb = [[b, t, p], [q, b, p], [p, b, t], [p, q, b], [t, p, b], [b, p, q]][i % 6];
+      return [Math.round(rgb[0] * 255), Math.round(rgb[1] * 255), Math.round(rgb[2] * 255)];
+    }
+
+    function computeCellDimensions(w, h) {
+      const container = document.getElementById('canvas-container');
+      const displayW = Math.max(container.clientWidth, 1);
+      const displayH = Math.max(container.clientHeight, 1);
+      const cellSize = Math.min(displayW / w, displayH / h);
+      const offsetX = (displayW - cellSize * w) / 2;
+      const offsetY = (displayH - cellSize * h) / 2;
+      return { cellSize, displayW, displayH, offsetX, offsetY };
+    }
+
+    function getRenderParams() {
+      const renderCellSize = cellSize * zoomScale;
+      const renderOffsetX = gridOffsetX + panX;
+      const renderOffsetY = gridOffsetY + panY;
+      return { renderCellSize, renderOffsetX, renderOffsetY };
+    }
+
+    function getVisibleRange(w, h) {
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const startX = Math.max(0, Math.floor((0 - renderOffsetX) / renderCellSize));
+      const endX = Math.min(w, Math.ceil((displayW - renderOffsetX) / renderCellSize));
+      const startY = Math.max(0, Math.floor((0 - renderOffsetY) / renderCellSize));
+      const endY = Math.min(h, Math.ceil((displayH - renderOffsetY) / renderCellSize));
+      return { startX, endX, startY, endY };
+    }
+
+    function setupCanvas(w, h) {
+      const dims = computeCellDimensions(w, h);
+      cellSize = dims.cellSize;
+      gridOffsetX = dims.offsetX;
+      gridOffsetY = dims.offsetY;
+      displayW = dims.displayW;
+      displayH = dims.displayH;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.round(displayW * dpr);
+      canvas.height = Math.round(displayH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvasReady = true;
+
+      document.getElementById('info-cell-size').textContent = `${Math.round(cellSize)}px`;
+    }
+
+    function drawCell(x, y) {
+      if (!currentGrid || !canvasReady) return;
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const px = Math.round(renderOffsetX + x * renderCellSize);
+      const py = Math.round(renderOffsetY + y * renderCellSize);
+      const px2 = Math.round(renderOffsetX + (x + 1) * renderCellSize);
+      const py2 = Math.round(renderOffsetY + (y + 1) * renderCellSize);
+      const cw = px2 - px;
+      const ch = py2 - py;
+      if (px2 < 0 || px > displayW || py2 < 0 || py > displayH) return;
+
+      const state = currentGrid[y][x];
+      const color = getStateColor(state, currentPalette.length || boardWidth * boardHeight);
+      ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+      ctx.fillRect(px, py, cw, ch);
+
+      if (showGrid && renderCellSize > 2) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, cw - 1, ch - 1);
+      }
+    }
+
+    function drawGrid() {
+      if (!currentGrid) return;
+      const h = currentGrid.length;
+      const w = currentGrid[0].length;
+      setupCanvas(w, h);
+
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const { startX, endX, startY, endY } = getVisibleRange(w, h);
+
+      // Pre-compute rounded row boundaries to avoid sub-pixel gaps
+      const rowYs = [];
+      for (let y = startY; y <= endY; y++) {
+        rowYs.push(Math.round(renderOffsetY + y * renderCellSize));
+      }
+      const colXs = [];
+      for (let x = startX; x <= endX; x++) {
+        colXs.push(Math.round(renderOffsetX + x * renderCellSize));
+      }
+
+      // Draw all cells using palette (including state 0)
+      for (let y = startY; y < endY; y++) {
+        const py = rowYs[y - startY];
+        const ch = rowYs[y - startY + 1] - py;
+        for (let x = startX; x < endX; x++) {
+          const px = colXs[x - startX];
+          const cw = colXs[x - startX + 1] - px;
+          const state = currentGrid[y][x];
+          const color = getStateColor(state, currentPalette.length || w * h);
+          ctx.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
+          ctx.fillRect(px, py, cw, ch);
+        }
+      }
+
+      // Draw grid lines if enabled
+      if (showGrid && renderCellSize > 2) {
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x++) {
+          const px = colXs[x - startX] + 0.5;
+          ctx.moveTo(px, rowYs[0]);
+          ctx.lineTo(px, rowYs[rowYs.length - 1]);
+        }
+        for (let y = startY; y <= endY; y++) {
+          const py = rowYs[y - startY] + 0.5;
+          ctx.moveTo(colXs[0], py);
+          ctx.lineTo(colXs[colXs.length - 1], py);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function cloneGrid(grid) {
+      return grid.map(row => row.slice());
+    }
+
+    function onFrame(uint8Array) {
+      const h = boardHeight;
+      const w = boardWidth;
+      currentGrid = [];
+      for (let y = 0; y < h; y++) {
+        const row = [];
+        for (let x = 0; x < w; x++) {
+          row.push(uint8Array[y * w + x]);
+        }
+        currentGrid.push(row);
+      }
+      drawGrid();
+    }
+
+    function syncControlButtons() {
+      const running = simRunState === 'running';
+      const canDraw = !running;
+
+      const btnStart = document.getElementById('btn-start');
+      const btnPause = document.getElementById('btn-pause');
+      const btnStep = document.getElementById('btn-step');
+      const btnReset = document.getElementById('btn-reset');
+
+      if (btnStart) btnStart.disabled = running;
+      if (btnPause) btnPause.disabled = !running;
+      if (btnStep) btnStep.disabled = running;
+      if (btnReset) btnReset.disabled = running;
+
+      document.querySelectorAll('.brush-swatch-btn').forEach(btn => {
+        btn.disabled = !canDraw;
+      });
+
+      const hint = document.getElementById('draw-hint');
+      if (hint) {
+        hint.textContent = running
+          ? 'Pause to edit the grid.'
+          : 'Select a state, then paint on the grid.';
+        hint.className = running
+          ? 'text-xs text-amber-600 font-medium mb-2'
+          : 'text-xs text-slate-500 mb-2';
+      }
+    }
+
+    function updateStatus(status) {
+      simRunState = status;
+      syncControlButtons();
+      const badge = document.getElementById('sim-status-badge');
+      const labels = {
+        running: ['status-running', 'bg-green-600 animate-pulse', 'Running'],
+        paused: ['status-paused', 'bg-yellow-600', 'Paused'],
+        stopped: ['status-ready', 'bg-slate-400', 'Ready'],
+        connected: ['status-ready', 'bg-blue-500', 'Ready'],
+        disconnected: ['status-paused', 'bg-red-500', 'Offline'],
+      };
+      const [cls, dotCls, text] = labels[status] || labels.stopped;
+      badge.className = `status-indicator ${cls}`;
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dotCls}"></span>${text}`;
+    }
+
+    function createBrushButtons(numStates) {
+      const container = document.getElementById('brush-container');
+      if (!container) return;
+      container.innerHTML = '';
+      for (let i = 0; i < numStates; i++) {
+        const color = currentPalette[i] || [255, 255, 255];
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `brush-swatch-btn${i === currentBrush ? ' active' : ''}`;
+        btn.dataset.state = String(i);
+        btn.title = i === 0 ? 'Empty (0)' : `State ${i}`;
+        btn.style.backgroundColor = `rgb(${color[0]},${color[1]},${color[2]})`;
+        btn.onclick = () => setBrush(i);
+        container.appendChild(btn);
+      }
+      syncControlButtons();
+    }
+
+    function setBrush(state) {
+      currentBrush = state;
+      document.querySelectorAll('.brush-swatch-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.state, 10) === state);
+      });
+    }
+
+    let enabledMetricNames = [];
+
+    function buildMetricsPanel(names) {
+      enabledMetricNames = names && names.length ? names : ['density', 'entropy'];
+      const panel = document.getElementById('metrics-panel');
+      if (!panel) return;
+      panel.innerHTML = enabledMetricNames.map(name => `
+        <div class="metric-card bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <div class="text-xs text-slate-600 font-medium mb-1">${name}</div>
+          <div class="font-bold text-slate-900 font-mono" id="metric-${name.replace(/[^a-z0-9_-]/gi, '_')}">—</div>
+          <div class="text-[10px] text-slate-500 mt-1 leading-tight font-mono" id="metric-sub-${name.replace(/[^a-z0-9_-]/gi, '_')}"></div>
+        </div>
+      `).join('');
+    }
+
+    function updateMetricsDisplay(metrics) {
+      if (!metrics) return;
+      for (const [name, value] of Object.entries(metrics)) {
+        const safeName = name.replace(/[^a-z0-9_-]/gi, '_');
+        const el = document.getElementById('metric-' + safeName);
+        const subEl = document.getElementById('metric-sub-' + safeName);
+        if (!el) continue;
+
+        if (typeof value === 'number') {
+          el.textContent = Number(value).toFixed(4);
+          if (subEl) subEl.textContent = '';
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Nested metric dict — show primary scalar if available, else flatten
+          const scalarEntries = Object.entries(value).filter(([k, v]) => typeof v === 'number');
+          if (scalarEntries.length === 1) {
+            el.textContent = Number(scalarEntries[0][1]).toFixed(4);
+            if (subEl) subEl.textContent = '';
+          } else if (scalarEntries.length > 1) {
+            // Show first value large, rest as sub-text
+            el.textContent = Number(scalarEntries[0][1]).toFixed(4);
+            if (subEl) {
+              subEl.textContent = scalarEntries.slice(1).map(([k, v]) => `${k}: ${Number(v).toFixed(3)}`).join(' | ');
+            }
+          } else {
+            el.textContent = '—';
+            if (subEl) subEl.textContent = '';
+          }
+        } else {
+          el.textContent = String(value);
+          if (subEl) subEl.textContent = '';
+        }
+      }
+    }
+
+    function onStatus(msg) {
+      if (msg.type === 'frame') {
+        document.getElementById('sim-step-display').textContent = `Step: ${msg.step}`;
+        // Use server-provided palette if available (image seed original colors)
+        if (msg.palette && msg.palette.length > 0 && JSON.stringify(imagePalette) !== JSON.stringify(msg.palette)) {
+          imagePalette = msg.palette;
+          // Sync currentPalette so drawGrid/drawCell render correctly
+          currentPalette = [];
+          for (let i = 0; i < imagePalette.length; i++) {
+            currentPalette[i] = imagePalette[i];
+          }
+          createBrushButtons(imagePalette.length);
+        }
+        if (msg.metrics) updateMetricsDisplay(msg.metrics);
+      } else if (msg.type === 'metrics') {
+        if (msg.metrics) updateMetricsDisplay(msg.metrics);
+      } else if (msg.type === 'status') {
+        updateStatus(msg.status);
+      } else if (msg.type === 'error') {
+        toast('Error: ' + msg.message, 'error');
+      }
+    }
+
+    async function loadSession() {
+      if (!sessionId) {
+        toast('No session ID. Create a session from the dashboard.', 'error');
+        setTimeout(() => { window.location.href = '/dashboard'; }, 2000);
+        return;
+      }
+      try {
+        const session = await api.get(`/api/sessions/${sessionId}`);
+        boardWidth = session.board_width;
+        boardHeight = session.board_height;
+        document.getElementById('info-board-size').textContent = `${boardWidth}×${boardHeight}`;
+        document.getElementById('info-states').textContent = session.num_states;
+        document.getElementById('info-rule').textContent = session.rule_name;
+        // Auto-add image_fidelity metric for image seeds
+        const seedConfig = session.seed_config || {};
+        let metrics = session.metrics_enabled || [];
+        if (seedConfig.type === 'image' && !metrics.includes('image_fidelity')) {
+          metrics = [...metrics, 'image_fidelity'];
+        }
+        buildMetricsPanel(metrics);
+
+        // Use image seed palette if available
+        if (seedConfig.type === 'image' && seedConfig.palette && seedConfig.palette.length > 0) {
+          imagePalette = seedConfig.palette;
+        } else {
+          imagePalette = null;
+        }
+
+        currentPalette = [];
+        for (let i = 0; i < session.num_states; i++) {
+          currentPalette.push(getStateColor(i, session.num_states));
+        }
+
+        createBrushButtons(session.num_states);
+
+        try {
+          const resp = await api.get(`/api/sessions/${sessionId}/grid`);
+          if (resp.grid) {
+            currentGrid = cloneGrid(resp.grid);
+            drawGrid();
+          }
+        } catch (_) {
+          currentGrid = Array.from({ length: boardHeight }, () => Array(boardWidth).fill(0));
+          drawGrid();
+        }
+
+        sim = new SimulationClient(sessionId, onFrame, onStatus);
+        sim.connect();
+      } catch (e) {
+        toast('Failed to load session: ' + e.message, 'error');
+      }
+    }
+
+    function startSim() {
+      if (!sim || !currentGrid) return;
+      sim.start(currentGrid);
+    }
+    function pauseSim() { if (sim) sim.pause(); }
+    function stepOnce() { if (sim) sim.step(1); }
+    function resetSim() { if (sim) sim.reset(); }
+
+    function updateSpeed(value) {
+      const ms = parseInt(value, 10);
+      document.getElementById('speed-display').textContent = `${ms}ms`;
+      if (sim) {
+        const fps = Math.max(1, Math.min(60, Math.round(1000 / ms)));
+        sim.speed(fps);
+      }
+    }
+
+    function toggleGrid(element) {
+      element.classList.toggle('active');
+      showGrid = element.classList.contains('active');
+      drawGrid();
+    }
+
+    function toggleCellNumbers(element) {
+      element.classList.toggle('active');
+    }
+
+    function saveSimulation() {
+      if (sim) sim.snapshot();
+    }
+
+    let renderFormat = 'gif';
+    let renderScale = 1;
+    let activeRenderJobId = null;
+    let renderPollInterval = null;
+
+    function toggleExportDropdown() {
+      const panel = document.getElementById('export-dropdown-panel');
+      panel.classList.toggle('hidden');
+    }
+    function closeExportDropdown() {
+      document.getElementById('export-dropdown-panel').classList.add('hidden');
+    }
+
+    async function exportImage() {
+      try {
+        const resp = await fetch(`/api/sessions/${sessionId}/export.png`);
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `ca-lab-session-${sessionId}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    async function exportImageWithMetrics() {
+      try {
+        const resp = await fetch(`/api/export/sessions/${sessionId}/png?overlay_metrics=true&overlay_step=true`);
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `ca-lab-session-${sessionId}-metrics.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    async function exportMetricsCsv() {
+      try {
+        const resp = await fetch(`/api/export/sessions/${sessionId}/metrics-csv`);
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `session-${sessionId}-metrics.csv`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    async function exportSessionZip() {
+      try {
+        const resp = await fetch(`/api/export/sessions/${sessionId}/zip`, { method: 'POST' });
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `session-${sessionId}-archive.zip`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    async function exportCliState() {
+      try {
+        const resp = await fetch(`/api/export/sessions/${sessionId}/cli-state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, include_snapshots: true }),
+        });
+        if (!resp.ok) throw new Error('Export failed');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `session-${sessionId}-cli-resume.zip`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        toast('Export failed: ' + e.message, 'error');
+      }
+    }
+
+    function openRenderDialog() {
+      document.getElementById('render-dialog').classList.remove('hidden');
+      document.getElementById('render-progress-area').classList.add('hidden');
+      document.getElementById('render-submit-btn').disabled = false;
+      document.getElementById('render-submit-btn').textContent = 'Start Render';
+      activeRenderJobId = null;
+      if (renderPollInterval) { clearInterval(renderPollInterval); renderPollInterval = null; }
+    }
+    function closeRenderDialog() {
+      document.getElementById('render-dialog').classList.add('hidden');
+      if (renderPollInterval) { clearInterval(renderPollInterval); renderPollInterval = null; }
+    }
+    function setRenderFormat(fmt) {
+      renderFormat = fmt;
+      ['gif','mp4','webm'].forEach(f => {
+        const btn = document.getElementById('fmt-' + f);
+        if (f === fmt) {
+          btn.className = 'fmt-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-primary-500 bg-primary-50 text-primary-800';
+        } else {
+          btn.className = 'fmt-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600';
+        }
+      });
+    }
+    function setRenderScale(s) {
+      renderScale = s;
+      [1,2,4].forEach(v => {
+        const btn = document.getElementById('scale-' + v);
+        if (v === s) {
+          btn.className = 'scale-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-primary-500 bg-primary-50 text-primary-800';
+        } else {
+          btn.className = 'scale-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600';
+        }
+      });
+    }
+
+    async function startRenderJob() {
+      const start = parseInt(document.getElementById('render-start').value, 10);
+      const end = parseInt(document.getElementById('render-end').value, 10);
+      const overlayMetrics = document.getElementById('overlay-metrics-check').checked;
+      const overlayStep = document.getElementById('overlay-step-check').checked;
+
+      try {
+        const resp = await fetch(`/api/export/sessions/${sessionId}/render`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            start_step: start,
+            end_step: end,
+            format: renderFormat,
+            scale: renderScale,
+            overlay_metrics: overlayMetrics,
+            overlay_step: overlayStep,
+          }),
+        });
+        if (!resp.ok) throw new Error('Failed to queue render');
+        const job = await resp.json();
+        activeRenderJobId = job.id;
+        document.getElementById('render-progress-area').classList.remove('hidden');
+        document.getElementById('render-submit-btn').disabled = true;
+        document.getElementById('render-submit-btn').textContent = 'Rendering…';
+        pollRenderJob(job.id);
+      } catch (e) {
+        toast('Render failed: ' + e.message, 'error');
+      }
+    }
+
+    function pollRenderJob(jobId) {
+      if (renderPollInterval) clearInterval(renderPollInterval);
+      renderPollInterval = setInterval(async () => {
+        try {
+          const resp = await fetch(`/api/export/jobs/${jobId}`);
+          if (!resp.ok) return;
+          const job = await resp.json();
+          document.getElementById('render-status-text').textContent = job.status;
+          document.getElementById('render-progress-pct').textContent = job.progress + '%';
+          document.getElementById('render-progress-bar').style.width = job.progress + '%';
+          if (job.status === 'done') {
+            clearInterval(renderPollInterval);
+            renderPollInterval = null;
+            document.getElementById('render-submit-btn').textContent = 'Download';
+            document.getElementById('render-submit-btn').disabled = false;
+            document.getElementById('render-submit-btn').onclick = () => downloadRender(jobId);
+            toast('Render complete! Click Download.', 'success');
+          } else if (job.status === 'error') {
+            clearInterval(renderPollInterval);
+            renderPollInterval = null;
+            document.getElementById('render-submit-btn').textContent = 'Failed';
+            toast('Render failed: ' + (job.error || 'unknown'), 'error');
+          }
+        } catch {
+          // silent poll fail
+        }
+      }, 1500);
+    }
+
+    function downloadRender(jobId) {
+      window.open(`/api/export/jobs/${jobId}/download`, '_blank');
+    }
+
+    function paintCell(x, y, state) {
+      if (simRunState === 'running') return;
+      if (!currentGrid || y < 0 || y >= boardHeight || x < 0 || x >= boardWidth) return;
+      if (currentGrid[y][x] === state) return;
+      currentGrid[y][x] = state;
+      if (!canvasReady) {
+        drawGrid();
+      } else {
+        drawCell(x, y);
+      }
+      if (sim) sim.paint(x, y, state);
+    }
+
+    function screenToGrid(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+      const x = Math.floor((clientX - rect.left - renderOffsetX) / renderCellSize);
+      const y = Math.floor((clientY - rect.top - renderOffsetY) / renderCellSize);
+      return { x, y };
+    }
+
+    function handlePaintAt(clientX, clientY) {
+      if (simRunState === 'running') return;
+      const { x, y } = screenToGrid(clientX, clientY);
+      paintCell(x, y, currentBrush);
+    }
+
+    function handleZoomAt(clientX, clientY, delta) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = clientX - rect.left;
+      const mouseY = clientY - rect.top;
+      const { renderCellSize, renderOffsetX, renderOffsetY } = getRenderParams();
+
+      const cellX = (mouseX - renderOffsetX) / renderCellSize;
+      const cellY = (mouseY - renderOffsetY) / renderCellSize;
+
+      const factor = delta > 0 ? 0.9 : 1.1;
+      const newZoom = Math.max(0.5, Math.min(10, zoomScale * factor));
+
+      const newRenderCellSize = cellSize * newZoom;
+      const newRenderOffsetX = mouseX - cellX * newRenderCellSize;
+      const newRenderOffsetY = mouseY - cellY * newRenderCellSize;
+
+      zoomScale = newZoom;
+      panX = newRenderOffsetX - gridOffsetX;
+      panY = newRenderOffsetY - gridOffsetY;
+
+      updateZoomDisplay();
+      drawGrid();
+    }
+
+    function updateZoomDisplay() {
+      const el = document.getElementById('zoom-display');
+      if (el) el.textContent = `${Math.round(zoomScale * 100)}%`;
+    }
+
+    function resetZoom() {
+      zoomScale = 1.0;
+      panX = 0;
+      panY = 0;
+      updateZoomDisplay();
+      drawGrid();
+    }
+
+    function zoomIn() {
+      const rect = canvas.getBoundingClientRect();
+      handleZoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, -1);
+    }
+
+    function zoomOut() {
+      const rect = canvas.getBoundingClientRect();
+      handleZoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartOffsetX = panX;
+        panStartOffsetY = panY;
+        document.getElementById('canvas-container').classList.add('panning');
+        e.preventDefault();
+      } else if (e.button === 0) {
+        isPainting = true;
+        handlePaintAt(e.clientX, e.clientY);
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        panX = panStartOffsetX + (e.clientX - panStartX);
+        panY = panStartOffsetY + (e.clientY - panStartY);
+        drawGrid();
+      } else if (isPainting) {
+        handlePaintAt(e.clientX, e.clientY);
+      }
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      isPainting = false;
+      isPanning = false;
+      document.getElementById('canvas-container').classList.remove('panning');
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isPainting = false;
+      isPanning = false;
+      document.getElementById('canvas-container').classList.remove('panning');
+    });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      handleZoomAt(e.clientX, e.clientY, e.deltaY);
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      zoomScale = 1.0;
+      panX = 0;
+      panY = 0;
+      updateZoomDisplay();
+      drawGrid();
+    });
+
+    loadSession();
+  </script>
+
+  <!-- Render Export Dialog -->
+  <div id="render-dialog" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="closeRenderDialog()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-serif text-xl font-bold text-slate-900">Render Animation</h3>
+        <button onclick="closeRenderDialog()" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Start Step</label>
+            <input type="number" id="render-start" value="0" min="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">End Step</label>
+            <input type="number" id="render-end" value="100" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Format</label>
+          <div class="flex gap-2">
+            <button type="button" onclick="setRenderFormat('gif')" id="fmt-gif" class="fmt-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-primary-500 bg-primary-50 text-primary-800">GIF</button>
+            <button type="button" onclick="setRenderFormat('mp4')" id="fmt-mp4" class="fmt-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600">MP4</button>
+            <button type="button" onclick="setRenderFormat('webm')" id="fmt-webm" class="fmt-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600">WebM</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Resolution Scale</label>
+          <div class="flex gap-2">
+            <button type="button" onclick="setRenderScale(1)" id="scale-1" class="scale-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-primary-500 bg-primary-50 text-primary-800">1×</button>
+            <button type="button" onclick="setRenderScale(2)" id="scale-2" class="scale-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600">2×</button>
+            <button type="button" onclick="setRenderScale(4)" id="scale-4" class="scale-btn flex-1 px-3 py-2 text-xs font-bold rounded-lg border-2 border-slate-200 text-slate-600">4×</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" id="overlay-metrics-check" checked class="w-4 h-4 rounded border-slate-300 text-primary-600">
+            Metrics panel
+          </label>
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" id="overlay-step-check" checked class="w-4 h-4 rounded border-slate-300 text-primary-600">
+            Step counter
+          </label>
+        </div>
+        <div id="render-progress-area" class="hidden">
+          <div class="flex items-center justify-between text-xs text-slate-600 mb-1">
+            <span id="render-status-text">Queued…</span>
+            <span id="render-progress-pct">0%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div id="render-progress-bar" class="h-full bg-primary-500 rounded-full transition-all" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button onclick="closeRenderDialog()" class="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 text-sm">Cancel</button>
+          <button onclick="startRenderJob()" id="render-submit-btn" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-700 to-blue-600 text-white font-bold rounded-lg hover:from-primary-800 hover:to-blue-700 text-sm flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Start Render
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

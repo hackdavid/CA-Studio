@@ -27,6 +27,19 @@ from web.services.metric_loader import fetch_all_custom_metrics
 
 router = APIRouter(prefix="/api/sim", tags=["simulations"])
 
+
+async def _log_event(session_id: int, step: int, action_type: str, payload: dict[str, Any]) -> None:
+    """Log a session event for deterministic replay."""
+    db = await get_db()
+    try:
+        await db.execute(
+            "INSERT INTO session_events (session_id, step_number, action_type, payload) VALUES (?, ?, ?, ?)",
+            (session_id, step, action_type, json.dumps(payload)),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
 # Active simulation tasks
 active_simulations: dict[int, asyncio.Task] = {}
 
@@ -231,6 +244,7 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
                 else:
                     sim.reset()
                 await _save_session_state(session_id, sim)
+                await _log_event(session_id, sim.step_num, "reset", seed_cfg if isinstance(seed_cfg, dict) else {})
                 await send_frame()
                 await websocket.send_json({"type": "status", "status": "stopped", "step": 0})
 
@@ -241,6 +255,7 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
                 try:
                     sim.board.set(x, y, state)
                     await _save_session_state(session_id, sim)
+                    await _log_event(session_id, sim.step_num, "paint", {"x": x, "y": y, "state": state})
                     # Recalculate metrics and send lightweight update
                     metrics = sim._collect_metrics()
                     await websocket.send_json({
