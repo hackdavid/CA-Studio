@@ -203,6 +203,10 @@ class SimulationClient {
     paint(x, y, state) { this.send('paint', { x, y, state }); }
     speed(fps) { this.send('speed', { fps }); }
     snapshot() { this.send('snapshot'); }
+    startEvolution() { this.send('start_evolution'); }
+    resetEvolution() { this.send('reset_evolution'); }
+    breedNextGeneration(parents) { this.send('breed_next_generation', { parents }); }
+    resetPopulation() { this.send('reset_population'); }
 
     disconnect() {
         this.reconnect = false;

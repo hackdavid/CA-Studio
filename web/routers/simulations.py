@@ -22,6 +22,10 @@ from ca_engine.metrics.dynamic import DynamicMetricFactory
 from ca_engine.metrics.registry import MetricRegistry
 from ca_engine.rules.yaml_loader import YAMLRuleLoader
 from ca_engine.rules.legacy_loader import LegacyRuleLoader
+from ca_engine.evolution.chromosome import Chromosome
+from ca_engine.evolution.fitness import FitnessEvaluator
+from ca_engine.evolution.pipeline import EvolutionPipeline
+from ca_engine.evolution.breed_pipeline import BreedPipeline
 from web.routers.sessions import _build_initial_grid
 from web.services.metric_loader import fetch_all_custom_metrics
 
@@ -42,6 +46,291 @@ async def _log_event(session_id: int, step: int, action_type: str, payload: dict
 
 # Active simulation tasks
 active_simulations: dict[int, asyncio.Task] = {}
+# Active evolution pipelines
+active_evolutions: dict[int, EvolutionPipeline] = {}
+# Active breed pipelines
+active_breeds: dict[int, BreedPipeline] = {}
+
+
+async def _handle_evolution_websocket(websocket: WebSocket, session_id: int) -> None:
+    """Handle WebSocket for evolution mode."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT s.board_width, s.board_height, s.neighbourhood, s.num_states,
+                      s.seed_config, r.yaml_content, r.name as rule_name, s.current_grid,
+                      e.target_image, e.fitness_weights_json, e.population_size,
+                      e.generations, e.mutation_rate, e.evolve_rule, e.evolve_seed,
+                      e.constraints_json
+               FROM sessions s
+               JOIN rules r ON s.rule_id = r.id
+               LEFT JOIN evolution_configs e ON e.session_id = s.id
+               WHERE s.id = ?""",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            await websocket.send_json({"type": "error", "message": "Session not found"})
+            await websocket.close()
+            return
+    finally:
+        await db.close()
+
+    # Parse config
+    width = row["board_width"]
+    height = row["board_height"]
+    num_states = row["num_states"]
+    neighbourhood = row["neighbourhood"]
+    weights = json.loads(row["fitness_weights_json"] or '{"similarity": 0.5, "metrics": 0.3, "simplicity": 0.2}')
+    population_size = row["population_size"] or 30
+    generations = row["generations"] or 100
+    mutation_rate = row["mutation_rate"] or 0.05
+
+    # Build target grid from target image if available
+    target_grid = None
+    if row["target_image"]:
+        try:
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(row["target_image"])).convert("RGB")
+            # Resize to match board and quantize to states
+            img = img.resize((width, height), Image.Resampling.NEAREST)
+            arr = np.array(img)
+            # Convert RGB to states using simple quantization
+            gray = np.mean(arr, axis=2)
+            target_grid = (gray / 255.0 * (num_states - 1)).astype(np.uint8)
+        except Exception:
+            pass
+
+    # Build fitness evaluator
+    evaluator = FitnessEvaluator(
+        target_grid=target_grid,
+        weights=weights,
+        steps=20,
+        width=width,
+        height=height,
+    )
+
+    # Seed rule
+    seed_rule = None
+    if row["yaml_content"]:
+        try:
+            seed_rule = Chromosome.from_rule_yaml(row["yaml_content"], num_states, neighbourhood)
+        except Exception:
+            pass
+
+    pipeline = EvolutionPipeline(
+        population_size=population_size,
+        generations=generations,
+        mutation_rate=mutation_rate,
+        fitness_evaluator=evaluator,
+        seed_rule=seed_rule,
+    )
+    active_evolutions[session_id] = pipeline
+
+    task: asyncio.Task | None = None
+
+    async def evolution_loop() -> None:
+        """Run evolution and stream best candidate each generation."""
+        for result in pipeline.run():
+            if result.get("type") == "paused":
+                await asyncio.sleep(0.5)
+                continue
+            if result.get("type") == "done":
+                await websocket.send_json({
+                    "type": "evolution_done",
+                    "generation": result["generation"],
+                    "best_fitness": result["best_fitness_ever"],
+                })
+                break
+
+            best = result["best_chromosome"]
+            sim = best.to_simulator(width, height)
+            # Run a few steps to show evolved behavior
+            for _ in range(5):
+                sim.step()
+
+            palette = Palette.default(num_states)
+            await websocket.send_json({
+                "type": "evolution",
+                "generation": result["generation"],
+                "best_fitness": result["best_fitness"],
+                "best_fitness_ever": result["best_fitness_ever"],
+                "mean_fitness": result.get("mean_fitness", 0),
+                "grid_shape": sim.board.data.shape,
+                "palette": palette.colors.tolist(),
+            })
+            await websocket.send_bytes(sim.board.data.tobytes())
+
+            # Update DB with current generation and best fitness
+            db2 = await get_db()
+            try:
+                await db2.execute(
+                    "UPDATE evolution_configs SET current_generation = ?, best_fitness = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+                    (result["generation"], result["best_fitness"], session_id),
+                )
+                await db2.commit()
+            finally:
+                await db2.close()
+
+            # Yield control
+            await asyncio.sleep(0.1)
+
+    try:
+        while True:
+            msg = await websocket.receive_json()
+            action = msg.get("action")
+
+            if action == "start_evolution":
+                if not task or task.done():
+                    task = asyncio.create_task(evolution_loop())
+                await websocket.send_json({"type": "status", "status": "evolving"})
+
+            elif action == "pause":
+                pipeline.pause()
+                if task:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                await websocket.send_json({"type": "status", "status": "paused"})
+
+            elif action == "stop":
+                pipeline.stop()
+                if task:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                await websocket.send_json({"type": "status", "status": "stopped"})
+
+            elif action == "snapshot":
+                db2 = await get_db()
+                try:
+                    await db2.execute(
+                        """INSERT INTO session_snapshots (session_id, step_number, grid_state, metrics_json)
+                           VALUES (?, ?, ?, ?)""",
+                        (session_id, pipeline.current_generation, b"", json.dumps({"best_fitness": pipeline.best_fitness_ever})),
+                    )
+                    await db2.commit()
+                finally:
+                    await db2.close()
+                await websocket.send_json({"type": "snapshot_saved", "step": pipeline.current_generation})
+
+    except WebSocketDisconnect:
+        pipeline.stop()
+        if task:
+            task.cancel()
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
+    finally:
+        pipeline.stop()
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        if session_id in active_evolutions:
+            del active_evolutions[session_id]
+
+
+async def _handle_breed_websocket(websocket: WebSocket, session_id: int) -> None:
+    """Handle WebSocket for breed mode."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT s.board_width, s.board_height, s.neighbourhood, s.num_states,
+                      s.seed_config, r.yaml_content, r.name as rule_name, s.current_grid
+               FROM sessions s
+               JOIN rules r ON s.rule_id = r.id
+               WHERE s.id = ?""",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            await websocket.send_json({"type": "error", "message": "Session not found"})
+            await websocket.close()
+            return
+    finally:
+        await db.close()
+
+    width = row["board_width"]
+    height = row["board_height"]
+    num_states = row["num_states"]
+    neighbourhood = row["neighbourhood"]
+
+    seed_rule = None
+    if row["yaml_content"]:
+        try:
+            seed_rule = Chromosome.from_rule_yaml(row["yaml_content"], num_states, neighbourhood)
+        except Exception:
+            pass
+
+    pipeline = BreedPipeline(
+        population_size=9,
+        num_states=num_states,
+        neighbourhood=neighbourhood,
+        mutation_rate=0.1,
+        seed_rule=seed_rule,
+    )
+    active_breeds[session_id] = pipeline
+
+    async def send_population() -> None:
+        """Send current population grids."""
+        grids = pipeline.get_grids(width, height, steps=5)
+        palette = Palette.default(num_states)
+        await websocket.send_json({
+            "type": "population",
+            "generation": pipeline.generation,
+            "grid_shape": [height, width],
+            "palette": palette.colors.tolist(),
+            "count": len(grids),
+        })
+        for grid in grids:
+            await websocket.send_bytes(grid.tobytes())
+
+    # Send initial population
+    await send_population()
+
+    try:
+        while True:
+            msg = await websocket.receive_json()
+            action = msg.get("action")
+
+            if action == "breed_next_generation":
+                parents = msg.get("parents", [])
+                pipeline.breed_next_generation(parents)
+                await send_population()
+                await websocket.send_json({"type": "status", "status": "bred", "generation": pipeline.generation})
+
+            elif action == "reset_population":
+                pipeline.reset()
+                await send_population()
+                await websocket.send_json({"type": "status", "status": "reset", "generation": pipeline.generation})
+
+            elif action == "snapshot":
+                db2 = await get_db()
+                try:
+                    await db2.execute(
+                        """INSERT INTO session_snapshots (session_id, step_number, grid_state, metrics_json)
+                           VALUES (?, ?, ?, ?)""",
+                        (session_id, pipeline.generation, b"", json.dumps({"generation": pipeline.generation})),
+                    )
+                    await db2.commit()
+                finally:
+                    await db2.close()
+                await websocket.send_json({"type": "snapshot_saved", "step": pipeline.generation})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})
+    finally:
+        if session_id in active_breeds:
+            del active_breeds[session_id]
 
 
 async def _load_simulator(session_id: int) -> Simulator:
@@ -134,6 +423,24 @@ async def simulation_websocket(websocket: WebSocket, session_id: int) -> None:
       Server → Client: JSON status + binary (msgpack) frame data
     """
     await websocket.accept()
+
+    # Load session metadata first to determine mode
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT mode FROM sessions WHERE id = ?", (session_id,)
+        )
+        row = await cursor.fetchone()
+        session_mode = row["mode"] if row else "simulate"
+    finally:
+        await db.close()
+
+    if session_mode == "evolve":
+        await _handle_evolution_websocket(websocket, session_id)
+        return
+    if session_mode == "breed":
+        await _handle_breed_websocket(websocket, session_id)
+        return
 
     try:
         sim = await _load_simulator(session_id)

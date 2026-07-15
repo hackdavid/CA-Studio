@@ -235,6 +235,24 @@
         Ready
       </span>
       <span id="sim-step-display" class="text-xs font-mono text-slate-600">Step: 0</span>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <span id="info-board-size" class="text-xs text-slate-500 hidden sm:inline">—</span>
+      <span id="info-states" class="text-xs text-slate-500 hidden sm:inline">—</span>
+      <span id="info-rule" class="text-xs text-slate-500 hidden sm:inline">—</span>
+      <span id="info-cell-size" class="text-xs text-slate-500 hidden sm:inline">—</span>
+      <div class="h-5 w-px bg-slate-300"></div>
+      <!-- Mode Switcher -->
+      <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+        <button id="mode-simulate" onclick="setPageMode('simulate')" class="px-2.5 py-1 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all">
+          Simulate
+        </button>
+        <button id="mode-evolve" onclick="setPageMode('evolve')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all">
+          Evolve
+        </button>
+        <button id="mode-breed" onclick="setPageMode('breed')" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all">
+          Breed
+        </button>
+      </div>
     </div>
     <div class="flex items-center gap-3">
       <button onclick="saveSimulation()" class="control-btn inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:border-primary-400 hover:text-primary-700 transition-colors">
@@ -294,168 +312,37 @@
   <!-- Main Content: 10% - 80% - 10% Layout -->
   <div class="flex-1 flex overflow-hidden">
 
-    <!-- Left Panel: 10% - Controls & Options -->
+    <!-- Left Panel Slot -->
     <aside class="flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
-      <div class="p-4 space-y-5">
-
-        <!-- Playback Controls -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            Controls
-          </h3>
-          <div class="space-y-2">
-            <button id="btn-start" onclick="startSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-primary-600 to-blue-600 text-white font-bold rounded-xl hover:from-primary-700 hover:to-blue-700 transition-all shadow-md shadow-primary-500/20">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              Start
-            </button>
-            <button id="btn-pause" onclick="pauseSim()" class="control-btn w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 font-semibold rounded-lg border-2 border-slate-300 hover:border-primary-400 hover:text-primary-700 transition-all">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              Pause
-            </button>
-            <div class="grid grid-cols-2 gap-2">
-              <button id="btn-step" onclick="stepOnce()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
-                Step
-              </button>
-              <button id="btn-reset" onclick="resetSim()" class="control-btn flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Speed Control -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Speed
-          </h3>
-          <div class="space-y-3">
-            <input type="range" min="10" max="500" value="100" step="10" id="speed-slider" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" oninput="updateSpeed(this.value)">
-            <div class="flex items-center justify-between text-xs font-mono">
-              <span class="text-slate-500">Fast</span>
-              <span id="speed-display" class="font-bold text-primary-700">100ms</span>
-              <span class="text-slate-500">Slow</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- State brush picker -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
-            Brush (K states)
-          </h3>
-          <p id="draw-hint" class="text-xs text-slate-500 mb-2">Select a color, then paint on the grid.</p>
-          <div id="brush-container" class="brush-grid"></div>
-        </div>
-
-        <!-- View Options -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-            View
-          </h3>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-700 font-medium">Grid Lines</span>
-              <div class="toggle-switch active" onclick="toggleGrid(this)"></div>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-700 font-medium">Cell Numbers</span>
-              <div class="toggle-switch" onclick="toggleCellNumbers(this)"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Zoom Controls -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-            Zoom
-          </h3>
-          <div class="space-y-3">
-            <div class="grid grid-cols-2 gap-2">
-              <button id="btn-zoom-in" onclick="zoomIn()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                In
-              </button>
-              <button id="btn-zoom-out" onclick="zoomOut()" class="control-btn flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
-                Out
-              </button>
-            </div>
-            <div class="flex items-center justify-between text-xs font-mono">
-              <span class="text-slate-500">Zoom</span>
-              <span id="zoom-display" class="font-bold text-primary-700">100%</span>
-            </div>
-            <button id="btn-zoom-reset" onclick="resetZoom()" class="control-btn w-full flex items-center justify-center gap-1 px-3 py-2 bg-white text-slate-700 font-medium text-sm rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors">
-              Reset View
-            </button>
-            <p class="text-xs text-slate-500">Wheel to zoom. Right-drag or middle-drag to pan.</p>
-          </div>
-        </div>
-
-      </div>
+      <div id="left-slot" class="h-full"></div>
     </aside>
 
-    <!-- Center Panel: full-width canvas -->
+    <!-- Center Panel Slot -->
     <main class="flex-1 flex flex-col overflow-hidden min-w-0 bg-white">
-      <div class="flex-1 min-h-0">
+      <div id="center-slot" class="flex-1 min-h-0 h-full w-full">
         <div class="canvas-container h-full w-full" id="canvas-container">
           <canvas id="main-canvas"></canvas>
         </div>
       </div>
     </main>
 
-    <!-- Right Panel: Metrics -->
+    <!-- Right Panel Slot -->
     <aside class="flex-shrink-0 bg-white border-l border-slate-200 flex flex-col overflow-y-auto shadow-sm w-56 min-w-[14rem]">
-      <div class="p-4 space-y-4">
-
-        <!-- Metrics Header -->
-        <div>
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
-            <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            Metrics
-          </h3>
-          <p class="text-xs text-slate-500">Real-time analysis</p>
-        </div>
-
-        <!-- Metric Cards (populated from session metrics_enabled) -->
-        <div id="metrics-panel" class="space-y-3">
-          <p class="text-xs text-slate-500 text-center py-2">Loading metrics…</p>
-        </div>
-
-        <!-- Info Section -->
-        <div class="pt-4 border-t border-slate-200">
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Session Info</h3>
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between">
-              <span class="text-slate-600">Board Size</span>
-              <span class="font-mono font-bold text-slate-900" id="info-board-size">64×64</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-600">Cell Size</span>
-              <span class="font-mono font-bold text-slate-900" id="info-cell-size">12px</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-600">States (K)</span>
-              <span class="font-mono font-bold text-slate-900" id="info-states">2</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-600">Rule</span>
-              <span class="font-mono font-bold text-primary-700" id="info-rule">—</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <div id="right-slot" class="h-full"></div>
     </aside>
   </div>
 
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/panel-registry.js"></script>
+  <script src="/static/js/panels/simulate-left.js"></script>
+  <script src="/static/js/panels/simulate-right.js"></script>
+  <script src="/static/js/panels/simulate-center.js"></script>
+  <script src="/static/js/panels/evolve-left.js"></script>
+  <script src="/static/js/panels/evolve-right.js"></script>
+  <script src="/static/js/panels/evolve-center.js"></script>
+  <script src="/static/js/panels/breed-left.js"></script>
+  <script src="/static/js/panels/breed-center.js"></script>
+  <script src="/static/js/panels/breed-right.js"></script>
   <script>
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const sessionId = pathParts[0] === 'simulation' && pathParts[1] ? pathParts[1] : null;
@@ -488,6 +375,11 @@
     let simRunState = 'stopped';
 
     let imagePalette = null;
+
+    // Breed mode state
+    let breedGrids = [];
+    let breedGridCount = 0;
+    let breedGridShape = [0, 0];
 
     function getStateColor(state, numStates) {
       if (state === 0) return [255, 255, 255];
@@ -631,7 +523,75 @@
       return grid.map(row => row.slice());
     }
 
+    function drawGallery() {
+      if (!breedGrids.length) return;
+      const cols = 3;
+      const rows = Math.ceil(breedGrids.length / cols);
+      const gap = 8;
+      const availW = canvas.width - gap * (cols + 1);
+      const availH = canvas.height - gap * (rows + 1);
+      const cellW = Math.floor(availW / cols);
+      const cellH = Math.floor(availH / rows);
+      const miniSize = Math.min(cellW, cellH);
+      const gh = breedGridShape[0] || boardHeight;
+      const gw = breedGridShape[1] || boardWidth;
+      const miniCell = Math.floor(miniSize / Math.max(gw, gh));
+      const miniW = gw * miniCell;
+      const miniH = gh * miniCell;
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < breedGrids.length; i++) {
+        const c = i % cols;
+        const r = Math.floor(i / cols);
+        const offX = Math.floor((canvas.width - (cols * miniW + (cols - 1) * gap)) / 2) + c * (miniW + gap);
+        const offY = Math.floor((canvas.height - (rows * miniH + (rows - 1) * gap)) / 2) + r * (miniH + gap);
+
+        const grid = breedGrids[i];
+        for (let y = 0; y < gh; y++) {
+          for (let x = 0; x < gw; x++) {
+            const state = grid[y][x];
+            let color;
+            if (currentPalette && currentPalette.length > state) {
+              const pc = currentPalette[state];
+              if (Array.isArray(pc)) {
+                color = `rgb(${pc[0]},${pc[1]},${pc[2]})`;
+              } else {
+                color = pc;
+              }
+            } else {
+              color = getStateColor(state, Math.max(2, currentPalette.length || 2));
+            }
+            ctx.fillStyle = color;
+            ctx.fillRect(offX + x * miniCell, offY + y * miniCell, miniCell, miniCell);
+          }
+        }
+        // Border
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(offX, offY, miniW, miniH);
+      }
+    }
+
     function onFrame(uint8Array) {
+      if (window.caGridMode === 'gallery') {
+        const h = breedGridShape[0] || boardHeight;
+        const w = breedGridShape[1] || boardWidth;
+        const grid = [];
+        for (let y = 0; y < h; y++) {
+          const row = [];
+          for (let x = 0; x < w; x++) {
+            row.push(uint8Array[y * w + x]);
+          }
+          grid.push(row);
+        }
+        breedGrids.push(grid);
+        if (breedGrids.length >= breedGridCount) {
+          drawGallery();
+        }
+        return;
+      }
       const h = boardHeight;
       const w = boardWidth;
       currentGrid = [];
@@ -780,6 +740,33 @@
         if (msg.metrics) updateMetricsDisplay(msg.metrics);
       } else if (msg.type === 'metrics') {
         if (msg.metrics) updateMetricsDisplay(msg.metrics);
+      } else if (msg.type === 'population') {
+        breedGridCount = msg.count || 0;
+        breedGridShape = msg.grid_shape || [boardHeight, boardWidth];
+        breedGrids = [];
+        if (msg.palette && msg.palette.length > 0) {
+          imagePalette = msg.palette;
+          currentPalette = [];
+          for (let i = 0; i < imagePalette.length; i++) {
+            currentPalette[i] = imagePalette[i];
+          }
+          createBrushButtons(imagePalette.length);
+        }
+      } else if (msg.type === 'evolution') {
+        document.getElementById('sim-step-display').textContent = `Gen: ${msg.generation}`;
+        if (msg.palette && msg.palette.length > 0 && JSON.stringify(imagePalette) !== JSON.stringify(msg.palette)) {
+          imagePalette = msg.palette;
+          currentPalette = [];
+          for (let i = 0; i < imagePalette.length; i++) {
+            currentPalette[i] = imagePalette[i];
+          }
+          createBrushButtons(imagePalette.length);
+        }
+        // Dispatch to evolution dashboard
+        window.dispatchEvent(new CustomEvent('ca-evolution-update', { detail: msg }));
+      } else if (msg.type === 'evolution_done') {
+        toast(`Evolution complete! Best fitness: ${msg.best_fitness?.toFixed(4) || '—'}`, 'success');
+        window.dispatchEvent(new CustomEvent('ca-evolution-done', { detail: msg }));
       } else if (msg.type === 'status') {
         updateStatus(msg.status);
       } else if (msg.type === 'error') {
@@ -821,6 +808,12 @@
         }
 
         createBrushButtons(session.num_states);
+
+        // Set page mode based on session mode
+        const sessionMode = session.mode || 'simulate';
+        if (sessionMode !== 'simulate') {
+          setPageMode(sessionMode);
+        }
 
         try {
           const resp = await api.get(`/api/sessions/${sessionId}/grid`);
@@ -1191,6 +1184,86 @@
       panY = 0;
       updateZoomDisplay();
       drawGrid();
+    });
+
+    // ─── Mode Switching ──────────────────────────────────────────────────────
+    function setPageMode(mode) {
+      if (!['simulate', 'evolve', 'breed'].includes(mode)) return;
+      PanelRegistry.setMode(mode);
+      // Update switcher button styles
+      ['simulate', 'evolve', 'breed'].forEach(m => {
+        const btn = document.getElementById('mode-' + m);
+        if (!btn) return;
+        if (m === mode) {
+          btn.className = 'px-2.5 py-1 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
+        } else {
+          btn.className = 'px-2.5 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+        }
+      });
+      // Update page title in nav
+      const titleEl = document.querySelector('nav .font-serif');
+      if (titleEl) {
+        const labels = { simulate: 'Simulation', evolve: 'Evolution', breed: 'Breeding' };
+        titleEl.textContent = labels[mode] || 'Simulation';
+      }
+    }
+
+    // Evolution controls
+    function startEvolution() {
+      if (sim) sim.startEvolution();
+    }
+    function pauseEvolution() {
+      if (sim) sim.pause();
+    }
+    function stepEvolution() {
+      if (sim) sim.startEvolution();
+    }
+    function resetEvolution() {
+      if (sim) sim.resetEvolution();
+    }
+    function toggleMaskMode(enabled) {
+      console.log('Mask mode', enabled);
+    }
+    function saveBestRule() {
+      toast('Saving best rule...', 'info');
+    }
+
+    // Breed controls
+    let selectedBreedParents = [];
+    function breedNextGeneration() {
+      if (sim) sim.breedNextGeneration(selectedBreedParents);
+      selectedBreedParents = [];
+      updateParentsList();
+    }
+    function resetPopulation() {
+      if (sim) sim.resetPopulation();
+      selectedBreedParents = [];
+      updateParentsList();
+    }
+    function toggleParentSelection(index) {
+      const idx = selectedBreedParents.indexOf(index);
+      if (idx >= 0) {
+        selectedBreedParents.splice(idx, 1);
+      } else {
+        selectedBreedParents.push(index);
+      }
+      updateParentsList();
+    }
+    function updateParentsList() {
+      const list = document.getElementById('breed-parents-list');
+      if (!list) return;
+      if (!selectedBreedParents.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 italic">No parents selected</p>';
+        return;
+      }
+      list.innerHTML = selectedBreedParents.map(i => `<div class="text-xs font-medium text-primary-700 bg-primary-50 rounded px-2 py-1">Candidate ${i + 1}</div>`).join('');
+    }
+
+    // Initialize simulate mode on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof PanelRegistry !== 'undefined') {
+        PanelRegistry.setMode('simulate');
+      }
     });
 
     loadSession();

@@ -19,6 +19,13 @@ let smImageSeedMaxStates = 64;
 let smImageSeedAutoSize = true;
 let smImageFile = null; // Original File object for re-upload on mode change
 
+// Tab state
+let smActiveTab = 'standard'; // 'standard' | 'evolution'
+
+// Evolution target image
+let smEvoTargetImage = null; // { base64, width, height }
+let smEvoTargetFile = null;
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function smGetRuleStates(rule) {
   if (!rule?.yaml_content) return 2;
@@ -44,6 +51,11 @@ function openNewSessionModal() {
   smImageSeedMaxStates = 64;
   smImageSeedAutoSize = true;
   smImageFile = null;
+  smActiveTab = 'standard';
+  smEvoTargetImage = null;
+  smEvoTargetFile = null;
+  switchSessionTab('standard');
+  clearEvoTargetPreview();
 
   // Reset form fields
   const nameInput = document.getElementById('session-name-input');
@@ -515,6 +527,98 @@ function setupImageDropZone() {
   });
 }
 
+// ─── Tab Switching ─────────────────────────────────────────────────────────
+function switchSessionTab(tab) {
+  smActiveTab = tab;
+  const standardBtn = document.getElementById('tab-standard');
+  const evolutionBtn = document.getElementById('tab-evolution');
+  const evoSection = document.getElementById('evolution-settings-section');
+  const metricsSection = document.getElementById('metric-dropdown-trigger')?.closest('.relative');
+
+  if (tab === 'standard') {
+    standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
+    evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+    if (evoSection) evoSection.classList.add('hidden');
+    if (metricsSection) metricsSection.classList.remove('hidden');
+  } else {
+    evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
+    standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+    if (evoSection) evoSection.classList.remove('hidden');
+    if (metricsSection) metricsSection.classList.add('hidden');
+  }
+}
+
+// ─── Evolution Target Image ──────────────────────────────────────────────
+function setupEvoTargetDropZone() {
+  const zone = document.getElementById('evo-target-drop-zone');
+  const fileInput = document.getElementById('evo-target-file-input');
+  if (!zone || !fileInput) return;
+
+  zone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) onEvoTargetDrop(file);
+  });
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    zone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  zone.addEventListener('dragenter', () => zone.classList.add('border-primary-500', 'bg-primary-50'));
+  zone.addEventListener('dragleave', () => zone.classList.remove('border-primary-500', 'bg-primary-50'));
+  zone.addEventListener('drop', (e) => {
+    zone.classList.remove('border-primary-500', 'bg-primary-50');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) onEvoTargetDrop(file);
+  });
+}
+
+async function onEvoTargetDrop(file) {
+  if (!file || !file.type.startsWith('image/')) {
+    toast('Please drop a valid image file', 'error');
+    return;
+  }
+  smEvoTargetFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const base64 = e.target.result.split(',')[1];
+    smEvoTargetImage = { base64, file };
+    updateEvoTargetPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateEvoTargetPreview() {
+  const preview = document.getElementById('evo-target-preview');
+  const img = document.getElementById('evo-target-img');
+  const stats = document.getElementById('evo-target-stats');
+  if (!preview || !img) return;
+
+  if (!smEvoTargetImage) {
+    preview.classList.add('hidden');
+    if (stats) stats.textContent = '';
+    return;
+  }
+
+  img.src = 'data:image/png;base64,' + smEvoTargetImage.base64;
+  preview.classList.remove('hidden');
+  if (stats) stats.textContent = 'Target image loaded';
+}
+
+function clearEvoTargetPreview() {
+  smEvoTargetImage = null;
+  smEvoTargetFile = null;
+  const preview = document.getElementById('evo-target-preview');
+  const img = document.getElementById('evo-target-img');
+  const stats = document.getElementById('evo-target-stats');
+  if (preview) preview.classList.add('hidden');
+  if (img) img.src = '';
+  if (stats) stats.textContent = '';
+}
+
 // ─── Create Session ────────────────────────────────────────────────────────
 async function createSession() {
   const name = document.getElementById('session-name-input').value.trim() || 'Untitled Session';
@@ -558,7 +662,7 @@ async function createSession() {
   }
 
   try {
-    const session = await api.post('/api/sessions/', {
+    const payload = {
       name,
       rule_id: smSelectedRuleId,
       board_width: width,
@@ -567,7 +671,29 @@ async function createSession() {
       num_states: numStates,
       seed_config: seedConfig,
       metrics_enabled: metrics.length ? metrics : ['density', 'entropy'],
-    });
+      mode: smActiveTab === 'evolution' ? 'evolve' : 'simulate',
+    };
+
+    if (smActiveTab === 'evolution') {
+      payload.evolution_config = {
+        fitness_weights: {
+          similarity: parseFloat(document.getElementById('evo-weight-similarity').value) || 0.5,
+          metrics: parseFloat(document.getElementById('evo-weight-metrics').value) || 0.3,
+          simplicity: parseFloat(document.getElementById('evo-weight-simplicity').value) || 0.2,
+        },
+        population_size: parseInt(document.getElementById('evo-pop-size-input').value, 10) || 30,
+        generations: parseInt(document.getElementById('evo-generations-input').value, 10) || 100,
+        mutation_rate: parseFloat(document.getElementById('evo-mutation-input').value) || 0.05,
+        evolve_rule: !document.getElementById('evo-lock-rule').checked,
+        evolve_seed: !document.getElementById('evo-lock-seed').checked,
+        constraints: {
+          symmetry: document.getElementById('evo-force-symmetry').checked,
+        },
+        target_image_base64: smEvoTargetImage?.base64 || null,
+      };
+    }
+
+    const session = await api.post('/api/sessions/', payload);
     closeNewSessionModal();
     window.location.href = `/simulation/${session.id}`;
   } catch (e) {
@@ -617,6 +743,7 @@ function setupNumStatesTracking() {
   });
   document.getElementById('seed-select')?.addEventListener('change', onSeedTypeChange);
   setupImageDropZone();
+  setupEvoTargetDropZone();
 }
 
 if (document.readyState === 'loading') {

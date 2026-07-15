@@ -360,6 +360,95 @@ def web(
 
 
 @app.command()
+def evolve(
+    target: Path = typer.Option(..., "--target", "-t", help="Target image PNG file"),
+    rule: str | None = typer.Option(None, "--rule", help="Seed rule name"),
+    width: int = typer.Option(32, "--width", "-w"),
+    height: int = typer.Option(32, "--height", "-h"),
+    states: int = typer.Option(2, "--states", "-k"),
+    generations: int = typer.Option(50, "--generations", "-g"),
+    population: int = typer.Option(20, "--population", "-p"),
+    mutation: float = typer.Option(0.05, "--mutation", "-m"),
+    headless: bool = typer.Option(False, "--headless", help="Run without matplotlib visualization"),
+    output: Path = typer.Option(Path("evolved_rule.yaml"), "--output", "-o"),
+) -> None:
+    """Evolve a CA rule to match a target image using genetic algorithm.
+
+    Examples:
+        ca-lab evolve -t docs/sample.png --generations 100
+        ca-lab evolve -t target.png --rule Conway --headless -o best.yaml
+    """
+    from PIL import Image
+    import numpy as np
+    from ca_engine.evolution.chromosome import Chromosome
+    from ca_engine.evolution.fitness import FitnessEvaluator
+    from ca_engine.evolution.pipeline import EvolutionPipeline
+    from ca_engine.rules.legacy_loader import LegacyRuleLoader
+
+    img = Image.open(target).convert("RGB")
+    img = img.resize((width, height), Image.Resampling.NEAREST)
+    arr = np.array(img)
+    gray = np.mean(arr, axis=2)
+    target_grid = (gray / 255.0 * (states - 1)).astype(np.uint8)
+
+    seed_rule = None
+    if rule:
+        loader = LegacyRuleLoader()
+        table = loader.load(rule, num_states=states)
+        seed_rule = Chromosome.from_rule_yaml(table.to_yaml(), states, "moore8")
+
+    evaluator = FitnessEvaluator(
+        target_grid=target_grid,
+        weights={"similarity": 0.6, "metrics": 0.2, "simplicity": 0.2},
+        steps=10,
+        width=width,
+        height=height,
+    )
+    pipeline = EvolutionPipeline(
+        population_size=population,
+        generations=generations,
+        mutation_rate=mutation,
+        fitness_evaluator=evaluator,
+        seed_rule=seed_rule,
+    )
+
+    if not headless:
+        try:
+            import matplotlib.pyplot as plt
+            fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+        except ImportError:
+            headless = True
+
+    best_ever = None
+    for result in pipeline.run():
+        if result.get("type") == "evolution":
+            gen = result["generation"]
+            best = result["best_fitness"]
+            best_ever = result["best_fitness_ever"]
+            if gen % 10 == 0 or gen == generations:
+                typer.echo(f"Generation {gen}: best={best:.4f} ever={best_ever:.4f}")
+            if not headless and gen % 5 == 0:
+                sim = result["best_chromosome"].to_simulator(width, height)
+                for _ in range(5):
+                    sim.step()
+                axes[0].imshow(target_grid, cmap="gray", vmin=0, vmax=states - 1)
+                axes[0].set_title("Target")
+                axes[1].imshow(sim.board.data, cmap="gray", vmin=0, vmax=states - 1)
+                axes[1].set_title(f"Gen {gen} (fit={best:.3f})")
+                plt.pause(0.01)
+
+    if pipeline.best_ever:
+        yaml_text = pipeline.best_ever.to_yaml()
+        with open(output, "w") as f:
+            f.write(yaml_text)
+        typer.echo(f"Evolution complete. Best fitness: {pipeline.best_fitness_ever:.4f}")
+        typer.echo(f"Best rule saved to {output}")
+    else:
+        typer.echo("Evolution did not produce a valid rule.")
+        raise typer.Exit(1)
+
+
+@app.command()
 def validate(
     rule: str = typer.Option("Conway", "--rule", help="Rule to validate"),
     steps: int = typer.Option(100, "--steps", help="Number of steps"),
@@ -391,6 +480,7 @@ def validate(
         for _ in range(steps):
             sim.step()
 
+        import numpy as np
         typer.echo(f"Rule '{rule}' validated: {steps} steps completed.")
         typer.echo(f"Final live cells: {np.count_nonzero(board.data)}")
 

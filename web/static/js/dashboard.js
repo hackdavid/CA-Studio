@@ -289,7 +289,10 @@ function renderRecentExperiments() {
         <div class="font-semibold text-sm text-slate-900">${s.name}</div>
         <div class="text-xs text-slate-500">${s.rule_name}</div>
       </td>
-      <td class="px-4 py-3">${formatStatus(s.status)}</td>
+      <td class="px-4 py-3">
+        ${formatStatus(s.status)}
+        ${s.mode && s.mode !== 'simulate' ? `<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${s.mode === 'evolve' ? 'bg-accent-100 text-accent-700' : 'bg-purple-100 text-purple-700'}">${s.mode === 'evolve' ? 'EVO' : 'Breed'}</span>` : ''}
+      </td>
       <td class="px-4 py-3 text-sm text-slate-600">${s.board_width}×${s.board_height}</td>
       <td class="px-4 py-3 text-sm text-slate-600">${s.current_step.toLocaleString()}</td>
       <td class="px-4 py-3 text-xs text-slate-500">${formatDate(s.created_at)}</td>

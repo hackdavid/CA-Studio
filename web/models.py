@@ -35,6 +35,23 @@ class RuleUpdate(BaseModel):
     category: str | None = None
 
 
+class SessionMode:
+    SIMULATE = "simulate"
+    EVOLVE = "evolve"
+    BREED = "breed"
+
+
+class EvolutionConfigCreate(BaseModel):
+    target_image_base64: str | None = None
+    fitness_weights: dict[str, float] = Field(default_factory=lambda: {"similarity": 0.5, "metrics": 0.3, "simplicity": 0.2})
+    population_size: int = 30
+    generations: int = 100
+    mutation_rate: float = 0.05
+    evolve_rule: bool = True
+    evolve_seed: bool = False
+    constraints: dict[str, Any] = Field(default_factory=dict)
+
+
 class SessionCreate(BaseModel):
     name: str
     rule_id: int
@@ -44,6 +61,25 @@ class SessionCreate(BaseModel):
     num_states: int = 2
     seed_config: dict[str, Any] = Field(default_factory=dict)
     metrics_enabled: list[str] = Field(default_factory=lambda: ["density", "entropy"])
+    mode: str = SessionMode.SIMULATE
+    evolution_config: EvolutionConfigCreate | None = None
+
+
+class EvolutionConfigOut(BaseModel):
+    id: int
+    session_id: int
+    fitness_weights: dict[str, float]
+    population_size: int
+    generations: int
+    mutation_rate: float
+    evolve_rule: bool
+    evolve_seed: bool
+    constraints: dict[str, Any]
+    current_generation: int
+    best_fitness: float
+
+    class Config:
+        from_attributes = True
 
 
 class SessionOut(BaseModel):
@@ -59,7 +95,9 @@ class SessionOut(BaseModel):
     current_step: int
     status: str
     metrics_enabled: list[str]
+    mode: str
     created_at: str
+    evolution_config: EvolutionConfigOut | None = None
 
     class Config:
         from_attributes = True
@@ -70,6 +108,7 @@ class SessionUpdate(BaseModel):
     current_grid: list[list[int]] | None = None
     current_step: int | None = None
     status: str | None = None
+    mode: str | None = None
 
 
 class SnapshotOut(BaseModel):

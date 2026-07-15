@@ -65,7 +65,7 @@ async def list_sessions() -> list[dict[str, Any]]:
         cursor = await db.execute("""
             SELECT s.id, s.name, s.rule_id, r.name as rule_name, s.board_width, s.board_height,
                    s.neighbourhood, s.num_states, s.seed_config, s.current_step, s.status,
-                   s.metrics_enabled, s.created_at
+                   s.metrics_enabled, s.mode, s.created_at
             FROM sessions s
             JOIN rules r ON s.rule_id = r.id
             ORDER BY s.updated_at DESC
@@ -90,7 +90,7 @@ async def get_session(session_id: int) -> dict[str, Any]:
         cursor = await db.execute("""
             SELECT s.id, s.name, s.rule_id, r.name as rule_name, s.board_width, s.board_height,
                    s.neighbourhood, s.num_states, s.seed_config, s.current_step, s.status,
-                   s.metrics_enabled, s.created_at
+                   s.metrics_enabled, s.mode, s.created_at
             FROM sessions s
             JOIN rules r ON s.rule_id = r.id
             WHERE s.id = ?
@@ -101,6 +101,29 @@ async def get_session(session_id: int) -> dict[str, Any]:
         d = dict(row)
         d["seed_config"] = json.loads(d["seed_config"] or "{}")
         d["metrics_enabled"] = json.loads(d["metrics_enabled"] or "[]")
+        # Load evolution config if applicable
+        if d.get("mode") == "evolve":
+            cur2 = await db.execute(
+                """SELECT * FROM evolution_configs WHERE session_id = ?""",
+                (session_id,),
+            )
+            eco = await cur2.fetchone()
+            if eco:
+                d["evolution_config"] = {
+                    "id": eco["id"],
+                    "session_id": eco["session_id"],
+                    "fitness_weights": json.loads(eco["fitness_weights_json"] or "{}"),
+                    "population_size": eco["population_size"],
+                    "generations": eco["generations"],
+                    "mutation_rate": eco["mutation_rate"],
+                    "evolve_rule": bool(eco["evolve_rule"]),
+                    "evolve_seed": bool(eco["evolve_seed"]),
+                    "constraints": json.loads(eco["constraints_json"] or "{}"),
+                    "current_generation": eco["current_generation"],
+                    "best_fitness": eco["best_fitness"],
+                }
+            else:
+                d["evolution_config"] = None
         return d
     finally:
         await db.close()
@@ -126,8 +149,8 @@ async def create_session(session: SessionCreate) -> dict[str, Any]:
 
         cursor = await db.execute(
             """INSERT INTO sessions (name, rule_id, board_width, board_height, neighbourhood,
-                num_states, seed_config, metrics_enabled)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                num_states, seed_config, metrics_enabled, mode)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session.name,
                 session.rule_id,
@@ -137,6 +160,7 @@ async def create_session(session: SessionCreate) -> dict[str, Any]:
                 session.num_states,
                 json.dumps(session.seed_config),
                 json.dumps(session.metrics_enabled),
+                session.mode,
             ),
         )
         await db.commit()
@@ -153,6 +177,35 @@ async def create_session(session: SessionCreate) -> dict[str, Any]:
             (grid_bytes, session_id),
         )
         await db.commit()
+
+        # Insert evolution config if provided
+        if session.mode == "evolve" and session.evolution_config:
+            cfg = session.evolution_config
+            target_image = None
+            if cfg.target_image_base64:
+                import base64
+                try:
+                    target_image = base64.b64decode(cfg.target_image_base64)
+                except Exception:
+                    pass
+            await db.execute(
+                """INSERT INTO evolution_configs
+                   (session_id, target_image, fitness_weights_json, population_size,
+                    generations, mutation_rate, evolve_rule, evolve_seed, constraints_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    session_id,
+                    target_image,
+                    json.dumps(cfg.fitness_weights),
+                    cfg.population_size,
+                    cfg.generations,
+                    cfg.mutation_rate,
+                    cfg.evolve_rule,
+                    cfg.evolve_seed,
+                    json.dumps(cfg.constraints),
+                ),
+            )
+            await db.commit()
 
         return await get_session(session_id)
     except Exception as e:

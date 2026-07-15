@@ -48,6 +48,7 @@ async def init_db() -> None:
                 current_step INTEGER DEFAULT 0,
                 status TEXT DEFAULT 'paused',
                 metrics_enabled TEXT DEFAULT '["density", "entropy"]',
+                mode TEXT DEFAULT 'simulate',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (rule_id) REFERENCES rules(id)
@@ -117,6 +118,42 @@ async def init_db() -> None:
             )
         """)
 
+        # Evolution configs table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS evolution_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL UNIQUE,
+                target_image BLOB,
+                fitness_weights_json TEXT DEFAULT '{"similarity": 0.5, "metrics": 0.3, "simplicity": 0.2}',
+                population_size INTEGER DEFAULT 30,
+                generations INTEGER DEFAULT 100,
+                mutation_rate REAL DEFAULT 0.05,
+                evolve_rule BOOLEAN DEFAULT 1,
+                evolve_seed BOOLEAN DEFAULT 0,
+                constraints_json TEXT DEFAULT '{}',
+                current_generation INTEGER DEFAULT 0,
+                best_fitness REAL DEFAULT 0.0,
+                population_json TEXT DEFAULT '[]',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS evolution_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                generation INTEGER NOT NULL,
+                best_fitness REAL DEFAULT 0.0,
+                mean_fitness REAL DEFAULT 0.0,
+                diversity REAL DEFAULT 0.0,
+                metrics_json TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            )
+        """)
+
         await db.commit()
         await _migrate_schema(db)
 
@@ -136,6 +173,12 @@ async def _migrate_schema(db: aiosqlite.Connection) -> None:
         await db.execute("ALTER TABLE custom_metrics ADD COLUMN is_editable BOOLEAN DEFAULT 1")
     if "updated_at" not in metric_columns:
         await db.execute("ALTER TABLE custom_metrics ADD COLUMN updated_at TIMESTAMP")
+
+    # Migrate sessions table: add mode column if missing
+    cursor = await db.execute("PRAGMA table_info(sessions)")
+    session_columns = {row[1] for row in await cursor.fetchall()}
+    if "mode" not in session_columns:
+        await db.execute("ALTER TABLE sessions ADD COLUMN mode TEXT DEFAULT 'simulate'")
 
     await db.commit()
 
