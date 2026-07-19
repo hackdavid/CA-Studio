@@ -536,13 +536,13 @@ function switchSessionTab(tab) {
   const metricsSection = document.getElementById('metric-dropdown-trigger')?.closest('.relative');
 
   if (tab === 'standard') {
-    standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
-    evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+    if (standardBtn) standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
+    if (evolutionBtn) evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
     if (evoSection) evoSection.classList.add('hidden');
     if (metricsSection) metricsSection.classList.remove('hidden');
   } else {
-    evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
-    standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
+    if (evolutionBtn) evolutionBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-primary-800 shadow-sm transition-all';
+    if (standardBtn) standardBtn.className = 'px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-700 transition-all';
     if (evoSection) evoSection.classList.remove('hidden');
     if (metricsSection) metricsSection.classList.add('hidden');
   }
